@@ -477,7 +477,7 @@
 // ═══════════════════════════════════════════
 const WS_URL = (() => {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${location.host}`;
+  return `${proto}://${location.host}/ws`;
 })();
 
 const GAME_W = window.innerWidth;
@@ -696,6 +696,7 @@ let invincible = 0;
 let px = HALF_W / 2;
 let py = GAME_H - 80;
 const PSPEED = 5;
+const BULLET_SPEED = 9;
 
 // Bullets
 let bullets = [];
