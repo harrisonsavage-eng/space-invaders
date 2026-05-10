@@ -610,7 +610,7 @@ function initLevel(){
  if(level<=12){var bc=4,bw=W/(bc+1);for(var i=0;i<bc;i++){var sg=[];for(var rr=0;rr<4;rr++)for(var cc=0;cc<8;cc++)sg.push({r:rr,c:cc,hp:3});barriers.push({x:bw*(i+1)-32,y:H-155,segs:sg});}}
  if(level%10===0)spawnBoss(Math.ceil(level/10));
 }
-function spawnBoss(stage){var hp=35+stage*30;boss={x:W/2,y:100,hp:hp,mhp:hp,dir:1.0+stage*0.1,st:25,an:0,pts:4000+stage*600,stage:stage,name:BOSS_NAMES[Math.min(stage-1,BOSS_NAMES.length-1)]};}
+function spawnBoss(stage){var hp=35+stage*30;boss={x:W/2,y:100,hp:hp,mhp:hp,dir:1.2+stage*0.12,st:25,an:0,pts:4000+stage*600,stage:stage,name:BOSS_NAMES[Math.min(stage-1,BOSS_NAMES.length-1)]};}
  
 // ═══════════════════════════════════════════════════
 // DRAW SHIP
@@ -663,19 +663,19 @@ function gtick(ts){if(!running)return;var dt=Math.min((ts-lt)/16.67,3);lt=ts;upd
  
 function update(dt){
  // Movement
- if((keys['ArrowLeft']||keys['a']||tL)&&px>25)px-=5*dt;
- if((keys['ArrowRight']||keys['d']||tR)&&px<W-25)px+=5*dt;
- if((keys[' ']||keys['ArrowUp']||tF)&&scd<=0){fire();scd=14;}
+ if((keys['ArrowLeft']||keys['a']||tL)&&px>25)px-=6*dt;
+ if((keys['ArrowRight']||keys['d']||tR)&&px<W-25)px+=6*dt;
+ if((keys[' ']||keys['ArrowUp']||tF)&&scd<=0){fire();scd=11;}
  if(scd>0)scd-=dt;if(inv>0)inv-=dt;
  
  // Bullets — faster
- buls.forEach(function(b){b.y-=8*dt;});buls=buls.filter(function(b){return b.y>0;});
+ buls.forEach(function(b){b.y-=10*dt;});buls=buls.filter(function(b){return b.y>0;});
  // Update remote bullets (from other players)
  Object.keys(remoteBullets).forEach(function(pid){
-  remoteBullets[pid].forEach(function(b){b.y-=8*dt;b.ttl--;});
+  remoteBullets[pid].forEach(function(b){b.y-=10*dt;b.ttl--;});
   remoteBullets[pid]=remoteBullets[pid].filter(function(b){return b.y>0&&b.ttl>0;});
  });  // was 9
- abuls.forEach(function(b){b.y+=3.5*dt;});abuls=abuls.filter(function(b){return b.y<H;});
+ abuls.forEach(function(b){b.y+=4.5*dt;});abuls=abuls.filter(function(b){return b.y<H;});
  bbuls.forEach(function(b){b.x+=b.dx*dt;b.y+=b.dy*dt;});bbuls=bbuls.filter(function(b){return b.y<H&&b.x>0&&b.x<W;});
  
  // PVP MODE
@@ -689,22 +689,22 @@ function update(dt){
  
  // Aliens — FASTER
  if(gameMode!=='boss_rush'){
-  var spd=0.4+level*0.04;
+  var spd=0.55+level*0.055;
   aliens.forEach(function(a){
    a.x+=adir*spd*dt;a.an=(a.an+dt)%60;a.st-=dt;
-   if(a.st<=0){a.st=Math.random()*200+60;abuls.push({x:a.x,y:a.y+12});}  // faster shooting
+   if(a.st<=0){a.st=Math.random()*160+45;abuls.push({x:a.x,y:a.y+12});}  // faster shooting
   });
   if(aliens.length&&(aliens.some(function(a){return a.x>W-18;})||aliens.some(function(a){return a.x<18;}))){adir*=-1;aliens.forEach(function(a){a.y+=22;});}
  }
  
  // Boss — FASTER
  if(boss){
-  boss.x+=boss.dir*dt*0.8;if(boss.x>W-60||boss.x<60)boss.dir*=-1;
+  boss.x+=boss.dir*dt*1.1;if(boss.x>W-60||boss.x<60)boss.dir*=-1;
   boss.an=(boss.an+dt)%60;boss.st-=dt;
   if(boss.st<=0){
-   boss.st=Math.max(18,40-boss.stage*3);
+   boss.st=Math.max(14,32-boss.stage*2);
    var sp=boss.stage>=5?7:boss.stage>=3?5:boss.stage>=2?3:1;
-   for(var i=-(sp-1)/2;i<=(sp-1)/2;i++){var r=(90+i*15)*Math.PI/180;bbuls.push({x:boss.x,y:boss.y+35,dx:Math.cos(r)*3,dy:Math.sin(r)*3});}
+   for(var i=-(sp-1)/2;i<=(sp-1)/2;i++){var r=(90+i*15)*Math.PI/180;bbuls.push({x:boss.x,y:boss.y+35,dx:Math.cos(r)*3.8,dy:Math.sin(r)*3.8});}
   }
  }
  
