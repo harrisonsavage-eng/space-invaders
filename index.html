@@ -496,14 +496,34 @@ var ws=null,myPid=1,isMP=false,gameMode='normal',playerCount=1,maxPlayers=2;
 var otherPlayers={};  // pid -> data
 var remoteBullets={};  // pid -> [{x,y,color,ttl}]
  
-function cwn(cb){ws=new WebSocket(WS_URL);ws.onopen=cb;ws.onmessage=function(e){hMsg(JSON.parse(e.data));};ws.onclose=function(){ws=null;};}
-function wsnd(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
+// cwn replaced by direct WS management in createRoom/joinRoom
+function wsnd(o){
+ if(ws&&ws.readyState===WebSocket.OPEN){
+  try{ws.send(JSON.stringify(o));}catch(e){console.warn('wsnd failed',e);}
+ }
+}
  
 function hMsg(m){
  var t=m.type;
- if(t==='room_created'){myPid=m.player_id;document.getElementById('dcode').textContent=m.room_code;}
- else if(t==='room_joined'){myPid=m.player_id;gameMode=m.mode;maxPlayers=m.max_players;}
- else if(t==='player_joined'){document.getElementById('wstat').textContent='Players: '+m.current_count+'/'+maxPlayers+' — Waiting...';}
+ if(t==='room_created'){
+  myPid=m.player_id;
+  document.getElementById('dcode').textContent=m.room_code;
+  if(m.mode)gameMode=m.mode;
+  if(m.max_players)maxPlayers=m.max_players;
+ }
+ else if(t==='room_joined'){
+  myPid=m.player_id;gameMode=m.mode;maxPlayers=m.max_players;
+  // Switch P2 to waiting screen
+  document.getElementById('lmain').style.display='none';
+  document.getElementById('ljoin').style.display='none';
+  document.getElementById('lwaiting').style.display='flex';
+  document.getElementById('dcode').textContent=m.room_code;
+  document.getElementById('wstat').textContent='Joined! Waiting for host to start...';
+ }
+ else if(t==='player_joined'){
+  var wstat=document.getElementById('wstat');
+  if(wstat)wstat.textContent='Players: '+m.current_count+'/'+maxPlayers+' — Waiting for all players...';
+ }
  else if(t==='start_game'){isMP=true;gameMode=m.mode;playerCount=m.player_count;startGame();}
  else if(t==='player_update'&&m.player_id!==myPid){
   otherPlayers[m.player_id]=m.data;
@@ -549,15 +569,44 @@ function createRoom(){
  document.getElementById('lmain').style.display='none';
  document.getElementById('lwaiting').style.display='flex';
  maxPlayers=selRoomSize;gameMode=selRoomMode;
- cwn(function(){wsnd({type:'create_room',mode:selRoomMode,max_players:selRoomSize});});
+ if(ws){try{ws.close();}catch(e){}ws=null;}
+ ws=new WebSocket(WS_URL);
+ ws.onmessage=function(e){hMsg(JSON.parse(e.data));};
+ ws.onclose=function(){ws=null;};
+ ws.onerror=function(){alert('Could not connect to server. Is it running?');};
+ ws.onopen=function(){
+  setTimeout(function(){wsnd({type:'create_room',mode:selRoomMode,max_players:selRoomSize});},100);
+ };
 }
 function showJoinInstead(){closeRoomCreate();document.getElementById('lmain').style.display='none';document.getElementById('ljoin').style.display='flex';}
 function joinRoom(){
  var c=document.getElementById('jcode').value.trim().toUpperCase();
  if(c.length<5){document.getElementById('jerr').textContent='Enter full 5-letter code';return;}
- cwn(function(){wsnd({type:'join_room',room_code:c});});
+ document.getElementById('jerr').textContent='Connecting...';
+ // Close any existing connection first
+ if(ws){try{ws.close();}catch(e){}ws=null;}
+ ws=new WebSocket(WS_URL);
+ ws.onmessage=function(e){hMsg(JSON.parse(e.data));};
+ ws.onclose=function(){ws=null;};
+ ws.onerror=function(){document.getElementById('jerr').textContent='Connection failed. Check the code and try again.';};
+ ws.onopen=function(){
+  // Small delay to ensure server is ready to receive
+  setTimeout(function(){
+   wsnd({type:'join_room',room_code:c});
+  },100);
+ };
 }
-function backLobby(){if(ws){ws.close();ws=null;}document.getElementById('lmain').style.display='';document.getElementById('ljoin').style.display='none';document.getElementById('lwaiting').style.display='none';otherPlayers={};}
+function backLobby(){
+ if(ws){try{ws.close();}catch(e){}ws=null;}
+ document.getElementById('lmain').style.display='';
+ document.getElementById('ljoin').style.display='none';
+ document.getElementById('lwaiting').style.display='none';
+ document.getElementById('jerr').textContent='';
+ document.getElementById('jcode').value='';
+ document.getElementById('dcode').textContent='-----';
+ document.getElementById('wstat').textContent='Waiting for players...';
+ otherPlayers={};remoteBullets={};isMP=false;
+}
 function openSoloSelect(){document.getElementById('solo-ov').style.display='flex';}
 function closeSoloSelect(){document.getElementById('solo-ov').style.display='none';}
 function soloStart(mode){closeSoloSelect();isMP=false;myPid=1;gameMode=mode||'normal';playerCount=1;startGame();}
