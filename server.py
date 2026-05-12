@@ -1,14 +1,14 @@
 """
 Space Invaders Multiplayer Server
-Single worker, in-memory rooms, aiohttp WebSocket
+aiohttp with proper WebSocket support for Render
 """
 import os, json, random, string, time
 from aiohttp import web, WSMsgType
 
 PORT = int(os.environ.get("PORT", 10000))
 
-rooms = {}    # code -> {players:{pid:ws}, mode, max_players}
-ws_info = {}  # ws -> {code, pid}
+rooms = {}
+ws_info = {}
 
 def make_code():
     while True:
@@ -33,7 +33,7 @@ async def broadcast(code, msg, exclude_pid=None):
         try:
             await ws.send_str(data)
         except Exception as e:
-            print(f"[broadcast error pid={pid}] {e}")
+            print(f"[broadcast error] {e}")
 
 async def cleanup(ws):
     info = ws_info.pop(ws, None)
@@ -44,20 +44,26 @@ async def cleanup(ws):
     if not room:
         return
     room["players"].pop(pid, None)
-    print(f"[Server] P{pid} left room {code}. Players left: {len(room['players'])}")
     if room["players"]:
         await broadcast(code, {"type": "player_left", "player_id": pid})
     else:
         del rooms[code]
-        print(f"[Server] Room {code} deleted")
 
 async def index(request):
-    return web.FileResponse("index.html")
+    try:
+        return web.FileResponse("index.html")
+    except Exception:
+        return web.Response(text="<h1>Game loading...</h1>", content_type="text/html")
 
 async def ws_handler(request):
-    ws = web.WebSocketResponse(heartbeat=25)
+    ws = web.WebSocketResponse(heartbeat=20, max_msg_size=1024*1024)
+    
+    # Check if it's actually a WebSocket request
+    if not ws.can_prepare(request):
+        return web.Response(text="WebSocket endpoint", status=200)
+    
     await ws.prepare(request)
-    print(f"[Server] Connection opened. Active rooms: {list(rooms.keys())}")
+    print(f"[Server] WS connected. Rooms: {list(rooms.keys())}")
 
     try:
         async for msg in ws:
@@ -68,7 +74,6 @@ async def ws_handler(request):
                     continue
 
                 t = d.get("type", "")
-                print(f"[Server] MSG={t} rooms={list(rooms.keys())}")
 
                 if t == "ping":
                     await tx(ws, {"type": "pong"})
@@ -77,13 +82,9 @@ async def ws_handler(request):
                     code = make_code()
                     mode = d.get("mode", "coop")
                     max_p = max(2, min(4, int(d.get("max_players", 2))))
-                    rooms[code] = {
-                        "players": {1: ws},
-                        "mode": mode,
-                        "max_players": max_p
-                    }
+                    rooms[code] = {"players": {1: ws}, "mode": mode, "max_players": max_p}
                     ws_info[ws] = {"code": code, "pid": 1}
-                    print(f"[Server] Room {code} CREATED mode={mode} max={max_p}")
+                    print(f"[Server] Room {code} created mode={mode}")
                     await tx(ws, {
                         "type": "room_created",
                         "room_code": code,
@@ -94,11 +95,10 @@ async def ws_handler(request):
 
                 elif t == "join_room":
                     code = str(d.get("room_code", "")).upper().strip()
-                    print(f"[Server] JOIN attempt code='{code}' available={list(rooms.keys())}")
+                    print(f"[Server] Join '{code}' rooms={list(rooms.keys())}")
                     room = rooms.get(code)
                     if not room:
-                        print(f"[Server] Room '{code}' NOT FOUND")
-                        await tx(ws, {"type": "error", "msg": f"Room {code} not found. Check the code!"})
+                        await tx(ws, {"type": "error", "msg": f"Room {code} not found. Check code!"})
                     elif len(room["players"]) >= room["max_players"]:
                         await tx(ws, {"type": "error", "msg": "Room is full!"})
                     else:
@@ -106,7 +106,6 @@ async def ws_handler(request):
                         room["players"][pid] = ws
                         ws_info[ws] = {"code": code, "pid": pid}
                         count = len(room["players"])
-                        print(f"[Server] P{pid} joined room {code} ({count}/{room['max_players']})")
                         await tx(ws, {
                             "type": "room_joined",
                             "room_code": code,
@@ -121,7 +120,6 @@ async def ws_handler(request):
                             "max_players": room["max_players"]
                         }, exclude_pid=pid)
                         if count >= room["max_players"]:
-                            print(f"[Server] Room {code} FULL — starting!")
                             await broadcast(code, {
                                 "type": "start_game",
                                 "mode": room["mode"],
@@ -146,21 +144,30 @@ async def ws_handler(request):
 
             elif msg.type == WSMsgType.ERROR:
                 print(f"[Server] WS error: {ws.exception()}")
+                break
 
     except Exception as e:
-        print(f"[Server] Handler error: {e}")
+        print(f"[Server] Error: {e}")
     finally:
         await cleanup(ws)
-        print(f"[Server] Connection closed. Rooms: {list(rooms.keys())}")
+        print(f"[Server] Disconnected. Rooms: {list(rooms.keys())}")
 
     return ws
+
+# Middleware to handle CORS for WebSocket
+async def cors_middleware(app, handler):
+    async def middleware(request):
+        response = await handler(request)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    return middleware
 
 app = web.Application()
 app.router.add_get("/", index)
 app.router.add_get("/index.html", index)
 app.router.add_get("/ws", ws_handler)
+app.router.add_get("/health", lambda r: web.Response(text="ok"))
 
 if __name__ == "__main__":
     print(f"[Server] Starting on port {PORT}")
-    # IMPORTANT: workers=1 keeps all rooms in same memory space
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
