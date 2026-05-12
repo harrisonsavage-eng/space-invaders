@@ -100,7 +100,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
 </head>
 <body>
 <canvas id="sc"></canvas>
- 
+
 <!-- LOBBY -->
 <div id="lobby" class="screen active">
  <div class="lc">
@@ -137,7 +137,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
   </div>
  </div>
 </div>
- 
+
 <!-- ROOM CREATE OVERLAY -->
 <!-- SOLO MODE SELECT -->
 <div id="solo-ov" style="position:fixed;inset:0;background:#000000ee;z-index:36;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;">
@@ -154,7 +154,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
  </div>
  <button class="btn r" onclick="closeSoloSelect()">CANCEL</button>
 </div>
- 
+
 <!-- REVIEW POPUP -->
 <div id="review-ov" style="position:fixed;inset:0;background:#000000cc;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;">
  <div style="border:2px solid var(--y);background:var(--pn);padding:28px 32px;max-width:420px;width:90%;text-align:center;">
@@ -170,7 +170,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
   <div style="font-size:6px;color:#fff4;margin-top:8px;" id="review-msg"></div>
  </div>
 </div>
- 
+
 <div id="room-ov">
  <div class="rtitle">CREATE ROOM</div>
  <div class="st" style="margin-bottom:4px;">Choose game mode:</div>
@@ -201,10 +201,10 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
   <button class="btn r" onclick="closeRoomCreate()">CANCEL</button>
  </div>
 </div>
- 
+
 <!-- GAME -->
 <div id="game-screen" class="screen"><canvas id="gameCanvas"></canvas></div>
- 
+
 <div id="hud">
  <div class="hs" id="hud-left">
   <span><span class="hl">P1 </span><span class="hv" id="h1s">0</span></span>
@@ -219,7 +219,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
   <span><span class="hl">HP </span><span class="hv" id="h2h">♥♥♥</span></span>
  </div>
 </div>
- 
+
 <div id="chat-ov">
  <div id="chat-msgs"></div>
  <div id="chat-ir">
@@ -227,7 +227,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
   <button id="chat-sb" onclick="sendChat()">GO</button>
  </div>
 </div>
- 
+
 <div id="mob">
  <div style="display:flex;gap:7px;">
   <div class="mb" id="bl">L</div>
@@ -235,7 +235,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
  </div>
  <div class="mb mf" id="bf">FIRE</div>
 </div>
- 
+
 <!-- SHOP -->
 <div id="shop-ov" class="ov">
  <div class="ot">SHOP</div>
@@ -249,7 +249,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
  <div style="font-size:7px;color:var(--c);margin-bottom:9px;" id="smsg"></div>
  <button class="btn r" onclick="closeShop()">CLOSE</button>
 </div>
- 
+
 <!-- LOCKER -->
 <div id="lock-ov" class="ov">
  <div class="ot">LOCKER</div>
@@ -263,7 +263,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
  <div style="font-size:7px;color:var(--c);margin-bottom:9px;" id="lmsg"></div>
  <button class="btn r" onclick="closeLocker()">CLOSE</button>
 </div>
- 
+
 <!-- BATTLE PASS -->
 <div id="bp-ov" class="ov">
  <div class="ot">BATTLE PASS</div>
@@ -279,7 +279,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
  <div class="tabs" id="bpstabs"></div>
  <button class="btn r" onclick="closeBP()">CLOSE</button>
 </div>
- 
+
 <!-- MESSAGE -->
 <div id="msg-ov">
  <div class="mt" id="mt">GAME OVER</div>
@@ -289,14 +289,14 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
   <button class="btn y" onclick="backLobbyFromGame()">MENU</button>
  </div>
 </div>
- 
+
 <script>
 // ═══════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════
 var WS_URL=(function(){var p=location.protocol==='https:'?'wss':'ws';return p+'://'+location.host+'/ws';})();
 var W=innerWidth,H=innerHeight;
- 
+
 // ═══════════════════════════════════════════════════
 // SEASONS (12, ~30 days each)
 // ═══════════════════════════════════════════════════
@@ -318,7 +318,7 @@ var SEASONS=[
 ];
 var TSHIPS={classic:['retro_gold','galactic_stealth','8bit_pixel','crystal_void'],starwars:['xwing','tiefighter','millennium','deathstar'],cyber:['cyber_neon','plasma_red','void_runner','dark_matter'],ocean:['sub_shark','coral_wing','deep_one','kraken_ship'],fire:['magma_jet','inferno','cinder_craft','fire_drake'],ice:['frost_wing','blizzard','glacier','permafrost'],jungle:['vine_flyer','canopy_ace','fern_glider','jungle_lord'],neon:['neon_ghost','circuit_ship','laser_bee','chrome_dart'],egypt:['scarab_ship','pharaoh_jet','ankh_craft','sungod'],haunted:['ghost_ship','pumpkin_jet','wraith_craft','lich_ship'],robot:['mech_fighter','iron_drone','servo_ship','omega_bot'],cosmic:['stardust','nebula_god','void_titan','big_bang']};
 var TLASERS={classic:['blue','red'],starwars:['red','plasma_bolt'],cyber:['purple','rainbow'],ocean:['aqua','foam'],fire:['lava','ember'],ice:['frost','cryo'],jungle:['vine','toxic'],neon:['neon_pink','holo'],egypt:['solar','sand'],haunted:['spectral','cursed'],robot:['electric','laser_grid'],cosmic:['void_beam','stardust_shot']};
- 
+
 function buildBP(season){
  var ships=TSHIPS[season.theme]||['classic','retro_gold','crystal_void','dark_matter'];
  var lasers=TLASERS[season.theme]||['blue','red'];
@@ -344,7 +344,7 @@ function buildBP(season){
 function getCurS(){var e=Date.now()-SEASON_EPOCH.getTime();if(e<0)return 0;return Math.floor(e/SEASON_MS)%SEASONS.length;}
 function getSRem(){var e=Date.now()-SEASON_EPOCH.getTime();var c=Math.floor(e/SEASON_MS);return Math.max(0,SEASON_EPOCH.getTime()+(c+1)*SEASON_MS-Date.now());}
 function fmtCD(ms){var s=Math.floor(ms/1000),d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60),sc=s%60;return d+'d '+h+'h '+m+'m '+sc+'s';}
- 
+
 // ═══════════════════════════════════════════════════
 // ITEMS
 // ═══════════════════════════════════════════════════
@@ -436,7 +436,7 @@ var EF={
  shield_pulse:{name:'Shield Pulse',cost:0,color:'#00ff88'},
  warp_trail:{name:'Warp Trail',cost:0,color:'#b44dff'},
 };
- 
+
 // ═══════════════════════════════════════════════════
 // PLAYER DATA — coins ONLY from battle pass
 // ═══════════════════════════════════════════════════
@@ -444,7 +444,7 @@ var DEF={coins:300,xp:0,bp_tier:0,cur_season:0,owned_ships:['classic'],active_sh
 function ld(){try{return Object.assign({},DEF,JSON.parse(localStorage.getItem('si4')||'{}'));}catch(e){return Object.assign({},DEF);}}
 function sd(d){localStorage.setItem('si4',JSON.stringify(d));}
 var PD=ld();
- 
+
 function addXP(n){
  PD.xp+=n;
  var si=getCurS();
@@ -461,7 +461,7 @@ function addXP(n){
  });
  sd(PD);updLobby();
 }
- 
+
 function updLobby(){
  PD=ld();
  document.getElementById('lcc').textContent=PD.coins;
@@ -478,7 +478,7 @@ function updLobby(){
  setTimeout(tick,1000);
 })();
 updLobby();
- 
+
 // ═══════════════════════════════════════════════════
 // STARFIELD
 // ═══════════════════════════════════════════════════
@@ -488,14 +488,14 @@ var STARS=[];for(var i=0;i<220;i++)STARS.push({x:Math.random()*W,y:Math.random()
 var ss=0;
 function dStars(){sctx.fillStyle='#050a18';sctx.fillRect(0,0,sc.width,sc.height);STARS.forEach(function(st){var y=(st.y+ss*st.sp)%sc.height,b=Math.floor(100+155*(st.s/1.7));sctx.fillStyle='rgb('+b+','+b+','+b+')';sctx.beginPath();sctx.arc(st.x,y,st.s,0,Math.PI*2);sctx.fill();});ss++;requestAnimationFrame(dStars);}
 dStars();
- 
+
 // ═══════════════════════════════════════════════════
 // NETWORKING
 // ═══════════════════════════════════════════════════
 var ws=null,myPid=1,isMP=false,gameMode='normal',playerCount=1,maxPlayers=2;
 var otherPlayers={};  // pid -> data
 var remoteBullets={};  // pid -> [{x,y,color,ttl}]
- 
+
 // ── NETWORKING ──
 function openWS(onReady){
  if(ws){try{ws.close();}catch(e){}ws=null;}
@@ -516,13 +516,13 @@ function openWS(onReady){
   setTimeout(onReady, 600);
  };
 }
- 
+
 function wsnd(o){
  if(ws&&ws.readyState===WebSocket.OPEN){
   try{ws.send(JSON.stringify(o));}catch(e){console.warn('wsnd err',e);}
  }
 }
- 
+
 function hMsg(m){
  var t=m.type;
  if(t==='room_created'){
@@ -563,7 +563,13 @@ function hMsg(m){
  else if(t==='start_game'){
   isMP=true;gameMode=m.mode||'coop';playerCount=m.player_count||2;startGame();
  }
- else if(t==='player_update'&&m.player_id!==myPid){otherPlayers[m.player_id]=m.data;}
+ else if(t==='player_update'&&m.player_id!==myPid){
+  otherPlayers[m.player_id]=m.data;
+  // Init their PVP lives when we first see them
+  if(gameMode==='pvp'&&pvpLives[m.player_id]===undefined){
+   pvpLives[m.player_id]=3;
+  }
+ }
  else if(t==='bullet_fired'&&m.from_player!==myPid){
   if(!remoteBullets[m.from_player])remoteBullets[m.from_player]=[];
   remoteBullets[m.from_player].push(Object.assign({},m.data,{owner:m.from_player,ttl:90}));
@@ -583,7 +589,7 @@ function hMsg(m){
  else if(t==='alien_killed'&&m.from_player!==myPid){rmAlien(m.alien_id);}
  else if(t==='player_left'){delete otherPlayers[m.player_id];delete remoteBullets[m.player_id];}
 }
- 
+
 // ═══════════════════════════════════════════════════
 // ROOM CREATE LOBBY
 // ═══════════════════════════════════════════════════
@@ -652,7 +658,7 @@ function openSoloSelect(){document.getElementById('solo-ov').style.display='flex
 function closeSoloSelect(){document.getElementById('solo-ov').style.display='none';}
 function soloStart(mode){closeSoloSelect();isMP=false;myPid=1;gameMode=mode||'normal';playerCount=1;startGame();}
 function backLobbyFromGame(){stopGame();document.getElementById('msg-ov').classList.remove('show');document.getElementById('game-screen').classList.remove('active');document.getElementById('lobby').classList.add('active');updLobby();backLobby();}
- 
+
 // ═══════════════════════════════════════════════════
 // GAME ENGINE
 // ═══════════════════════════════════════════════════
@@ -662,14 +668,14 @@ var px,py,buls=[],abuls=[],bbuls=[],scd=0;
 var aliens=[],adir=1,barriers=[],boss=null;
 var parts=[],flts=[];
 var keys={},tL=false,tR=false,tF=false;
- 
+
 // PVP specific
 var pvpLives={};  // pid->lives
 var pvpDead={};   // pid->bool
-var pvpWinner=0;
- 
+var pvpWinner=0,pvpGameStarted=false;
+
 var BOSS_NAMES=['The Invader','Void Crusher','Nebula Tyrant','Star Devourer','Cosmic Overlord','Dark Singularity','Omega Destroyer','Galaxy Ender','Entropy God'];
- 
+
 function startGame(){
  document.getElementById('lobby').classList.remove('active');
  document.getElementById('game-screen').classList.add('active');
@@ -679,12 +685,16 @@ function startGame(){
  buls=[];abuls=[];bbuls=[];parts=[];flts=[];
  pvpLives={};pvpDead={};pvpWinner=0;remoteBullets={};
  pvpLives[myPid]=3;
+ // Pre-init other player lives if we know about them
+ Object.keys(otherPlayers).forEach(function(pid){pvpLives[pid]=3;});
+ pvpGameStarted=false;
+ setTimeout(function(){pvpGameStarted=true;},3000);
  startPlayTimer();
  Object.keys(otherPlayers).forEach(function(pid){pvpLives[pid]=3;});
  initLevel();setupCtrl();running=true;requestAnimationFrame(gtick);
 }
 function stopGame(){running=false;}
- 
+
 function initLevel(){
  aliens=[];abuls=[];bbuls=[];boss=null;adir=1;
  if(gameMode==='pvp'){return;}  // PVP has no aliens
@@ -701,7 +711,7 @@ function initLevel(){
  if(level%10===0)spawnBoss(Math.ceil(level/10));
 }
 function spawnBoss(stage){var hp=35+stage*30;boss={x:W/2,y:100,hp:hp,mhp:hp,dir:1.2+stage*0.12,st:25,an:0,pts:4000+stage*600,stage:stage,name:BOSS_NAMES[Math.min(stage-1,BOSS_NAMES.length-1)]};}
- 
+
 // ═══════════════════════════════════════════════════
 // DRAW SHIP
 // ═══════════════════════════════════════════════════
@@ -731,7 +741,7 @@ function dShip(x,y,sid,sz,al){
  else{tri();}
  ctx.restore();
 }
- 
+
 function dAlien(x,y,row,an,hp){
  var cols=['#00ff88','#ffd700','#b464ff','#ff4444','#00d4ff','#ff8800','#ff00ff'];
  var c=cols[Math.min(row,cols.length-1)];
@@ -744,20 +754,20 @@ function dAlien(x,y,row,an,hp){
  ctx.beginPath();ctx.moveTo(x-12,y+5);ctx.lineTo(x-18,y+10+leg);ctx.stroke();
  ctx.beginPath();ctx.moveTo(x+12,y+5);ctx.lineTo(x+18,y+10+leg);ctx.stroke();
 }
- 
+
 // ═══════════════════════════════════════════════════
 // GAME TICK
 // ═══════════════════════════════════════════════════
 var lt=0;
 function gtick(ts){if(!running)return;var dt=Math.min((ts-lt)/16.67,3);lt=ts;update(dt);render();requestAnimationFrame(gtick);}
- 
+
 function update(dt){
  // Movement
  if((keys['ArrowLeft']||keys['a']||tL)&&px>25)px-=6*dt;
  if((keys['ArrowRight']||keys['d']||tR)&&px<W-25)px+=6*dt;
  if((keys[' ']||keys['ArrowUp']||tF)&&scd<=0){fire();scd=11;}
  if(scd>0)scd-=dt;if(inv>0)inv-=dt;
- 
+
  // Bullets — faster
  buls.forEach(function(b){b.y-=10*dt;});buls=buls.filter(function(b){return b.y>0;});
  // Update remote bullets (from other players)
@@ -767,7 +777,7 @@ function update(dt){
  });  // was 9
  abuls.forEach(function(b){b.y+=4.5*dt;});abuls=abuls.filter(function(b){return b.y<H;});
  bbuls.forEach(function(b){b.x+=b.dx*dt;b.y+=b.dy*dt;});bbuls=bbuls.filter(function(b){return b.y<H&&b.x>0&&b.x<W;});
- 
+
  // PVP MODE
  if(gameMode==='pvp'){
   updatePVP(dt);
@@ -776,7 +786,7 @@ function update(dt){
   if(isMP)wsnd({type:'player_update',data:{x:px,y:py,lives:pvpLives[myPid]||0,skin:PD.active_ship,bullets:buls,dead:pvpDead[myPid]}});
   updHUD();return;
  }
- 
+
  // Aliens — FASTER
  if(gameMode!=='boss_rush'){
   var spd=0.55+level*0.055;
@@ -786,7 +796,7 @@ function update(dt){
   });
   if(aliens.length&&(aliens.some(function(a){return a.x>W-18;})||aliens.some(function(a){return a.x<18;}))){adir*=-1;aliens.forEach(function(a){a.y+=22;});}
  }
- 
+
  // Boss — FASTER
  if(boss){
   boss.x+=boss.dir*dt*1.1;if(boss.x>W-60||boss.x<60)boss.dir*=-1;
@@ -797,10 +807,10 @@ function update(dt){
    for(var i=-(sp-1)/2;i<=(sp-1)/2;i++){var r=(90+i*15)*Math.PI/180;bbuls.push({x:boss.x,y:boss.y+35,dx:Math.cos(r)*3.8,dy:Math.sin(r)*3.8});}
   }
  }
- 
+
  parts.forEach(function(p){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;p.vy+=0.1*dt;});parts=parts.filter(function(p){return p.life>0;});
  flts.forEach(function(m){m.y-=0.5*dt;m.life-=dt;});flts=flts.filter(function(m){return m.life>0;});
- 
+
  // Collisions bullets vs aliens
  for(var bi=buls.length-1;bi>=0;bi--){
   var b=buls[bi];
@@ -830,7 +840,7 @@ function update(dt){
  if(isMP)wsnd({type:'player_update',data:{x:px,y:py,score:score,lives:lives,skin:PD.active_ship,bullets:buls}});
  updHUD();
 }
- 
+
 // ═══════════════════════════════════════════════════
 // PVP MODE
 // ═══════════════════════════════════════════════════
@@ -861,11 +871,19 @@ function updatePVP(dt){
    }
   }
  });
- 
+
  // Check win condition
- var alive=Object.keys(pvpLives).filter(function(pid){return !pvpDead[pid]&&pvpLives[pid]>0;});
- if(alive.length===1&&playerCount>1){pvpWinner=parseInt(alive[0]);pvpEnd();return;}
- if(alive.length===0){pvpEnd();return;}
+ // Only check win if game has properly started and both players are tracked
+ if(pvpGameStarted){
+  var allPids=Object.keys(pvpLives);
+  var alive=allPids.filter(function(pid){return !pvpDead[pid]&&pvpLives[pid]>0;});
+  var dead=allPids.filter(function(pid){return pvpDead[pid]||pvpLives[pid]<=0;});
+  // Need at least 2 players tracked before checking win
+  if(allPids.length>=2){
+   if(alive.length===1){pvpWinner=parseInt(alive[0]);pvpEnd();return;}
+   if(alive.length===0){pvpEnd();return;}
+  }
+ }
 }
 function takePvpHit(dmg){
  if(pvpDead[myPid])return;
@@ -886,7 +904,7 @@ function pvpEnd(){
  document.getElementById('ms').textContent='Score: '+score+(won?'\n\nYOU WIN!':'\nPlayer '+pvpWinner+' wins!');
  document.getElementById('msg-ov').classList.add('show');
 }
- 
+
 function fire(){
  var laser=LA[PD.active_laser||'green'];
  var color=laser.color||(function(){var t=Date.now()/200;return 'rgb('+Math.floor(127+127*Math.sin(t))+','+Math.floor(127+127*Math.sin(t+2))+','+Math.floor(127+127*Math.sin(t+4))+')';})();
@@ -898,7 +916,7 @@ function rmAlien(id){var i=aliens.findIndex(function(a){return a.id===id;});if(i
 function spawnP(x,y,c){for(var i=0;i<8;i++){var a=Math.random()*Math.PI*2,sp=Math.random()*4+1;parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,color:c,life:22,maxLife:22});}}
 function sBigP(x,y){var cs=['#ff8800','#ff3200','#ffcc00','#fff'];for(var i=0;i<30;i++){var a=Math.random()*Math.PI*2,sp=Math.random()*7+2;parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,color:cs[Math.floor(Math.random()*4)],life:65,maxLife:65});}}
 function showFlt(t,c){flts.push({text:t,color:c,x:W/2,y:H/2,life:80,maxLife:80});}
- 
+
 // ═══════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════
@@ -919,7 +937,7 @@ function render(){
    ctx.fillStyle=b.color||pc;ctx.fillRect(b.x-2,b.y,4,16);
   });
  });
- 
+
  // My ship
  var eff=EF[PD.active_effect||'none'];
  if(eff&&eff.color&&inv<=0){ctx.fillStyle=eff.color+'55';ctx.fillRect(px-2,py+16,4,10);ctx.fillRect(px-1,py+26,2,8);}
@@ -927,7 +945,7 @@ function render(){
  var a=(inv>0&&Math.floor(inv/5)%2===0)?0.3:1;
  dShip(px,py,PD.active_ship,30,a);
  ctx.fillStyle='#00ff8888';ctx.font="6px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText('P'+myPid,px,py-36);
- 
+
  // PVP: show my HP hearts
  if(gameMode==='pvp'){
   var mhp=pvpLives[myPid]||0;
@@ -936,7 +954,7 @@ function render(){
  } else {
   for(var i=0;i<lives;i++)dShip(20+i*22,H-20,PD.active_ship,13,0.8);
  }
- 
+
  // Other players
  Object.keys(otherPlayers).forEach(function(pid){
   var op=otherPlayers[pid];if(!op)return;
@@ -954,17 +972,17 @@ function render(){
    ctx.fillText('P'+pid+': '+'♥'.repeat(Math.max(0,ohp)),W-10,H-30-(parseInt(pid)-2)*18);
   }
  });
- 
+
  // Divider line in 2+ player coop (visual only)
  if(isMP&&playerCount>=2&&gameMode!=='pvp'){
   ctx.strokeStyle='#1a305044';ctx.lineWidth=1;ctx.setLineDash([6,12]);ctx.beginPath();ctx.moveTo(W/2,44);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
  }
- 
+
  parts.forEach(function(p){ctx.save();ctx.globalAlpha=p.life/p.maxLife;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();ctx.restore();});
  flts.forEach(function(m){ctx.save();ctx.globalAlpha=m.life/m.maxLife;ctx.fillStyle=m.color;ctx.font="bold 13px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText(m.text,m.x,m.y);ctx.restore();});
  if(gameMode==='boss_rush'&&!boss){ctx.fillStyle='#ff880077';ctx.font="10px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText('NEXT BOSS INCOMING...',W/2,H/2);}
 }
- 
+
 function dPlanet(cx,cy,lv){
  var ts=[{body:'#4878c8',atm:'#7aacff',ring:false},{body:'#c88c3c',atm:'#ffc870',ring:true},{body:'#c83c3c',atm:'#ff7a7a',ring:false},{body:'#3cc8b4',atm:'#7affec',ring:false},{body:'#c8c850',atm:'#ffff90',ring:true},{body:'#880088',atm:'#cc44cc',ring:true}];
  var t=ts[Math.floor((lv-1)/5)%ts.length];var r=46;
@@ -972,7 +990,7 @@ function dPlanet(cx,cy,lv){
  var g2=ctx.createRadialGradient(cx-r*.3,cy-r*.3,r*.1,cx,cy,r);g2.addColorStop(0,t.atm);g2.addColorStop(1,t.body);ctx.fillStyle=g2;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
  if(t.ring){ctx.save();ctx.translate(cx,cy);ctx.scale(1,.3);ctx.strokeStyle=t.atm+'88';ctx.lineWidth=8;ctx.beginPath();ctx.arc(0,0,r*1.5,0,Math.PI*2);ctx.stroke();ctx.restore();}
 }
- 
+
 function dBoss(b){
  var x=b.x,y=b.y,p=Math.sin(b.an/60*Math.PI*2)*5,stage=b.stage||1;
  var hues=[{a:'#ff5050',b:'#880000'},{a:'#ff8800',b:'#882200'},{a:'#cc00ff',b:'#440088'},{a:'#00ffcc',b:'#006644'},{a:'#ffff00',b:'#888800'},{a:'#ff00ff',b:'#880088'},{a:'#00aaff',b:'#004488'},{a:'#ffffff',b:'#888888'},{a:'#ff4488',b:'#880033'}];
@@ -988,7 +1006,7 @@ function dBoss(b){
  ctx.fillStyle=h.a;ctx.font="7px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText(b.name||'BOSS',x,y+62);
  ctx.fillStyle='#fff6';ctx.font="6px 'Press Start 2P'";ctx.fillText(b.hp+'/'+b.mhp,x,y+72);
 }
- 
+
 function updHUD(){
  document.getElementById('h1s').textContent=score;
  document.getElementById('h1h').textContent=gameMode==='pvp'?'♥'.repeat(Math.max(0,pvpLives[myPid]||0)):'♥'.repeat(Math.max(0,lives));
@@ -999,7 +1017,7 @@ function updHUD(){
   if(op){document.getElementById('h2s').textContent=op.score||0;document.getElementById('h2h').textContent=gameMode==='pvp'?'♥'.repeat(Math.max(0,pvpLives[opids[0]]||0)):'♥'.repeat(Math.max(0,op.lives||0));}
  }
 }
- 
+
 function gameOver(){
  running=false;
  document.getElementById('mt').textContent='GAME OVER';document.getElementById('mt').style.color='#ff3c3c';
@@ -1010,10 +1028,10 @@ function restartGame(){
  document.getElementById('msg-ov').classList.remove('show');
  level=1;score=0;lives=3;inv=0;bossStage=1;px=W/2;py=H-80;
  buls=[];abuls=[];bbuls=[];parts=[];flts=[];barriers=[];
- pvpLives={};pvpDead={};pvpWinner=0;pvpLives[myPid]=5;
+ pvpLives={};pvpDead={};pvpWinner=0;pvpLives[myPid]=3;pvpGameStarted=false;setTimeout(function(){pvpGameStarted=true;},3000);
  initLevel();running=true;requestAnimationFrame(gtick);
 }
- 
+
 // ═══════════════════════════════════════════════════
 // CHAT
 // ═══════════════════════════════════════════════════
@@ -1021,7 +1039,7 @@ var chatOpen=false;
 function addChat(pid,text){var msgs=document.getElementById('chat-msgs');var div=document.createElement('div');div.className='cm p'+pid;div.textContent='P'+pid+': '+text;msgs.appendChild(div);while(msgs.children.length>5)msgs.removeChild(msgs.firstChild);setTimeout(function(){div.remove();},10000);}
 function sendChat(){var inp=document.getElementById('chat-in');var t=inp.value.trim();if(!t)return;wsnd({type:'chat',text:t});addChat(myPid,t);inp.value='';toggleChat(false);}
 function toggleChat(f){chatOpen=f!==undefined?f:!chatOpen;var r=document.getElementById('chat-ir');if(chatOpen){r.classList.add('vis');document.getElementById('chat-in').focus();}else{r.classList.remove('vis');}}
- 
+
 // ═══════════════════════════════════════════════════
 // CONTROLS
 // ═══════════════════════════════════════════════════
@@ -1034,7 +1052,7 @@ function setupCtrl(){
  st(document.getElementById('bf'),function(){tF=true;},function(){tF=false;});
  document.getElementById('chat-in').addEventListener('keydown',function(e){if(e.key==='Enter'){sendChat();e.preventDefault();}});
 }
- 
+
 // ═══════════════════════════════════════════════════
 // SHOP
 // ═══════════════════════════════════════════════════
@@ -1063,7 +1081,7 @@ function sBuy(type,id,cost,msg){
  else if(PD.coins>=cost){PD.coins-=cost;list.push(id);if(type==='ship')PD.active_ship=id;else if(type==='laser')PD.active_laser=id;else PD.active_effect=id;sd(PD);msg.textContent='Purchased!';rShop();}
  else msg.textContent='Need '+(cost-PD.coins)+' more coins! Earn them via Battle Pass.';
 }
- 
+
 // ═══════════════════════════════════════════════════
 // LOCKER
 // ═══════════════════════════════════════════════════
@@ -1088,7 +1106,7 @@ function rLocker(){
  });
  if(!grid.children.length){var d=document.createElement('div');d.style.cssText='color:#fff2;font-size:7px;grid-column:1/-1;padding:16px;text-align:center;line-height:2;';d.textContent='Nothing yet! Earn XP in game\nto unlock items via Battle Pass.';grid.appendChild(d);}
 }
- 
+
 // SHARED CARD BUILDER
 function mkCard(id,name,color,owned,equipped,label,type){
  var card=document.createElement('div');card.className='ic'+(equipped?' eq':owned?' own':'');
@@ -1101,7 +1119,7 @@ function mkCard(id,name,color,owned,equipped,label,type){
  var c=document.createElement('div');c.className='ico';c.textContent=label;c.style.color=equipped?'#ffd700':owned?'#00ff88':'#ffd700';
  card.append(pc,n,c);return card;
 }
- 
+
 // ═══════════════════════════════════════════════════
 // BATTLE PASS
 // ═══════════════════════════════════════════════════
@@ -1135,15 +1153,15 @@ function rBP(){
   btn.onclick=function(){bpView=idx;rBP();};tabs.appendChild(btn);
  });
 }
- 
- 
+
+
 // ═══════════════════════════════════════════════════
 // REVIEW SYSTEM — pops up after 20 mins, rewards unique skin
 // ═══════════════════════════════════════════════════
 var playStartTime=null,reviewShown=false,reviewTimer=null,starRating=0;
 // Special review-reward skin
 SK['galaxy_legend']={name:'Galaxy Legend',cost:0,colors:['#ffe066','#ff88ff','#ffffff'],style:'nebula'};
- 
+
 function startPlayTimer(){
  if(reviewShown)return;
  playStartTime=Date.now();
@@ -1152,7 +1170,7 @@ function startPlayTimer(){
   if(!reviewShown&&running){showReview();}
  },20*60*1000); // 20 minutes
 }
- 
+
 function showReview(){
  reviewShown=true;
  // Build star buttons
@@ -1168,13 +1186,13 @@ function showReview(){
  }
  document.getElementById('review-ov').style.display='flex';
 }
- 
+
 function setStars(n){
  starRating=n;
  document.getElementById('star-display').textContent='★'.repeat(n)+'☆'.repeat(5-n)+' ('+n+'/5)';
  for(var i=1;i<=5;i++){document.getElementById('star-'+i).textContent=i<=n?'★':'☆';}
 }
- 
+
 function submitReview(){
  var txt=document.getElementById('review-txt').value.trim();
  var msg=document.getElementById('review-msg');
@@ -1191,14 +1209,14 @@ function submitReview(){
   updLobby();
  },2500);
 }
- 
+
 function skipReview(){
  document.getElementById('review-ov').style.display='none';
  // Show again in another 20 mins if still playing
  reviewShown=false;
  reviewTimer=setTimeout(function(){if(!reviewShown&&running)showReview();},20*60*1000);
 }
- 
+
 window.addEventListener('resize',function(){sc.width=innerWidth;sc.height=innerHeight;});
 </script>
 </body>
