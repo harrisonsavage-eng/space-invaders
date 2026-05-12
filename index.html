@@ -122,7 +122,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
   </div>
   <div id="ljoin" style="display:none;flex-direction:column;align-items:center;">
    <div class="st">Enter room code:</div>
-   <input class="inp" id="jcode" maxlength="5" placeholder="XXXXX" autocomplete="off">
+   <input class="inp" id="jcode" maxlength="6" placeholder="XXXXX" autocomplete="off" oninput="this.value=this.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,5)">
    <div class="er" id="jerr"></div>
    <div class="brow" style="margin-top:8px;">
     <button class="btn c" onclick="joinRoom()">JOIN</button>
@@ -500,10 +500,21 @@ var remoteBullets={};  // pid -> [{x,y,color,ttl}]
 function openWS(onReady){
  if(ws){try{ws.close();}catch(e){}ws=null;}
  ws=new WebSocket(WS_URL);
- ws.onmessage=function(e){try{hMsg(JSON.parse(e.data));}catch(ex){console.error(ex);}};
- ws.onerror=function(){document.getElementById('jerr').textContent='Connection error. Try again.';};
- ws.onclose=function(){ws=null;};
- ws.onopen=function(){setTimeout(onReady,250);};
+ ws.onmessage=function(e){try{hMsg(JSON.parse(e.data));}catch(ex){console.error('hMsg error:',ex);}};
+ ws.onerror=function(e){
+  console.error('WS error:',e);
+  document.getElementById('jerr').textContent='Cannot connect to server. Try refreshing.';
+ };
+ ws.onclose=function(e){
+  console.log('WS closed code='+e.code);
+  ws=null;
+ };
+ ws.onopen=function(){
+  console.log('WS connected to '+WS_URL);
+  // Send ping first to confirm server is alive, then call onReady
+  try{ws.send(JSON.stringify({type:'ping'}));}catch(e){}
+  setTimeout(onReady, 600);
+ };
 }
  
 function wsnd(o){
@@ -522,7 +533,18 @@ function hMsg(m){
   document.getElementById('ljoin').style.display='none';
   document.getElementById('lwaiting').style.display='flex';
   document.getElementById('dcode').textContent=m.room_code;
-  document.getElementById('wstat').textContent='Share this code! (1/'+maxPlayers+' players)';
+  document.getElementById('wstat').textContent='Share this code with your friend!';
+  // Make code easy to copy
+  var dc=document.getElementById('dcode');
+  dc.title='Click to copy';
+  dc.style.cursor='pointer';
+  dc.onclick=function(){
+   navigator.clipboard.writeText(dc.textContent).then(function(){
+    dc.textContent=dc.textContent;
+    document.getElementById('wstat').textContent='Code copied! Send it to your friend.';
+    setTimeout(function(){document.getElementById('wstat').textContent='Share this code with your friend!';},2000);
+   });
+  };
  }
  else if(t==='room_joined'){
   myPid=m.player_id;
@@ -532,6 +554,7 @@ function hMsg(m){
   document.getElementById('ljoin').style.display='none';
   document.getElementById('lwaiting').style.display='flex';
   document.getElementById('dcode').textContent=m.room_code;
+  document.getElementById('jerr').textContent='';
   document.getElementById('wstat').textContent='Joined as Player '+myPid+'! Waiting to start...';
  }
  else if(t==='player_joined'){
@@ -551,7 +574,12 @@ function hMsg(m){
   if(m.target===myPid){pvpDie();}
  }
  else if(t==='chat'){addChat(m.player_id,m.text);}
- else if(t==='error'){document.getElementById('jerr').textContent=m.msg;}
+ else if(t==='pong'){console.log('Server pong received - connection confirmed');}
+ else if(t==='error'){
+  var errEl=document.getElementById('jerr');
+  if(errEl)errEl.textContent=m.msg;
+  console.error('Server error:',m.msg);
+ }
  else if(t==='alien_killed'&&m.from_player!==myPid){rmAlien(m.alien_id);}
  else if(t==='player_left'){delete otherPlayers[m.player_id];delete remoteBullets[m.player_id];}
 }
@@ -593,12 +621,20 @@ function createRoom(){
 }
 function showJoinInstead(){closeRoomCreate();document.getElementById('lmain').style.display='none';document.getElementById('ljoin').style.display='flex';}
 function joinRoom(){
- var c=document.getElementById('jcode').value.trim().toUpperCase();
- if(c.length<5){document.getElementById('jerr').textContent='Enter full 5-letter code';return;}
- document.getElementById('jerr').textContent='Connecting...';
+ var raw=document.getElementById('jcode').value;
+ var c=raw.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+ document.getElementById('jcode').value=c;
+ if(c.length<4){document.getElementById('jerr').textContent='Enter the room code';return;}
+ document.getElementById('jerr').textContent='Connecting to server...';
  openWS(function(){
-  console.log('Sending join_room for code:',c);
+  document.getElementById('jerr').textContent='Joining room '+c+'...';
   wsnd({type:'join_room',room_code:c});
+  // If no response in 5 seconds, show error
+  setTimeout(function(){
+   if(document.getElementById('jerr').textContent.indexOf('Joining')>=0){
+    document.getElementById('jerr').textContent='No response. Check the code and try again.';
+   }
+  },5000);
  });
 }
 function backLobby(){
@@ -1167,4 +1203,3 @@ window.addEventListener('resize',function(){sc.width=innerWidth;sc.height=innerH
 </script>
 </body>
 </html>
- 
