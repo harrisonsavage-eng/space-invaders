@@ -1,29 +1,23 @@
-import os, json, random, string, time
+import os, json, random, string
 from aiohttp import web, WSMsgType
-
 PORT = int(os.environ.get("PORT", 10000))
 rooms = {}
 ws_info = {}
-
 def make_code():
     while True:
         code = "".join(random.choices(string.ascii_uppercase + string.digits, k=5))
-        if code not in rooms:
-            return code
-
+        if code not in rooms: return code
 async def tx(ws, msg):
     try: await ws.send_str(json.dumps(msg))
     except: pass
-
 async def broadcast(code, msg, exclude_pid=None):
     room = rooms.get(code)
     if not room: return
     data = json.dumps(msg)
-    for pid, ws in list(room["players"].items()):
+    for pid, w in list(room["players"].items()):
         if pid == exclude_pid: continue
-        try: await ws.send_str(data)
+        try: await w.send_str(data)
         except: pass
-
 async def cleanup(ws):
     info = ws_info.pop(ws, None)
     if not info: return
@@ -33,10 +27,8 @@ async def cleanup(ws):
     room["players"].pop(pid, None)
     if room["players"]: await broadcast(code, {"type":"player_left","player_id":pid})
     else: del rooms[code]
-
 async def index(request):
     return web.FileResponse("index.html")
-
 async def wshandler(request):
     ws = web.WebSocketResponse(heartbeat=20)
     await ws.prepare(request)
@@ -46,8 +38,7 @@ async def wshandler(request):
             try: d = json.loads(msg.data)
             except: continue
             t = d.get("type","")
-            if t == "ping":
-                await tx(ws, {"type":"pong"})
+            if t == "ping": await tx(ws, {"type":"pong"})
             elif t == "create_room":
                 code = make_code()
                 mode = d.get("mode","coop")
@@ -81,13 +72,11 @@ async def wshandler(request):
     except: pass
     finally: await cleanup(ws)
     return ws
-
 app = web.Application()
 app.router.add_get("/", index)
 app.router.add_get("/index.html", index)
 app.router.add_get("/ws", wshandler)
 app.router.add_get("/health", lambda r: web.Response(text="ok"))
-
 if __name__ == "__main__":
-    print("Server starting on port", PORT)
+    print("Starting on port", PORT)
     web.run_app(app, host="0.0.0.0", port=PORT, access_log=None)
