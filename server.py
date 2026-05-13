@@ -1,11 +1,19 @@
 """
 Space Invaders Multiplayer Server
-aiohttp with proper WebSocket support for Render
 """
 import os, json, random, string, time
 from aiohttp import web, WSMsgType
 
 PORT = int(os.environ.get("PORT", 10000))
+
+# Get the directory where server.py lives — index.html is next to it
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX_PATH = os.path.join(BASE_DIR, "index.html")
+
+print(f"[Server] BASE_DIR: {BASE_DIR}")
+print(f"[Server] INDEX_PATH: {INDEX_PATH}")
+print(f"[Server] index.html exists: {os.path.exists(INDEX_PATH)}")
+print(f"[Server] Files in dir: {os.listdir(BASE_DIR)}")
 
 rooms = {}
 ws_info = {}
@@ -50,18 +58,25 @@ async def cleanup(ws):
         del rooms[code]
 
 async def index(request):
+    if os.path.exists(INDEX_PATH):
+        return web.FileResponse(INDEX_PATH)
+    # Fallback — read and serve manually
     try:
-        return web.FileResponse("index.html")
-    except Exception:
-        return web.Response(text="<h1>Game loading...</h1>", content_type="text/html")
+        with open(INDEX_PATH, 'r') as f:
+            html = f.read()
+        return web.Response(text=html, content_type='text/html')
+    except Exception as e:
+        return web.Response(
+            text=f"<h1>Error loading game</h1><p>{e}</p><p>Looking for: {INDEX_PATH}</p>",
+            content_type='text/html'
+        )
 
 async def ws_handler(request):
     ws = web.WebSocketResponse(heartbeat=20, max_msg_size=1024*1024)
-    
-    # Check if it's actually a WebSocket request
+
     if not ws.can_prepare(request):
         return web.Response(text="WebSocket endpoint", status=200)
-    
+
     await ws.prepare(request)
     print(f"[Server] WS connected. Rooms: {list(rooms.keys())}")
 
@@ -150,17 +165,8 @@ async def ws_handler(request):
         print(f"[Server] Error: {e}")
     finally:
         await cleanup(ws)
-        print(f"[Server] Disconnected. Rooms: {list(rooms.keys())}")
 
     return ws
-
-# Middleware to handle CORS for WebSocket
-async def cors_middleware(app, handler):
-    async def middleware(request):
-        response = await handler(request)
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        return response
-    return middleware
 
 app = web.Application()
 app.router.add_get("/", index)
