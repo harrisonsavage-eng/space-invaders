@@ -300,7 +300,14 @@ var WS_URL=(function(){
  console.log('[Game] WS URL:',url);
  return url;
 })();
-var W=innerWidth,H=innerHeight;
+var W=window.innerWidth,H=window.innerHeight;
+function resizeGame(){
+ W=window.innerWidth;H=window.innerHeight;
+ if(canvas&&canvas.style){canvas.width=W;canvas.height=H;}
+ var sc2=document.getElementById('sc');
+ if(sc2){sc2.width=W;sc2.height=H;}
+}
+window.addEventListener('resize',function(){resizeGame();});
 
 // ═══════════════════════════════════════════════════
 // SEASONS (12, ~30 days each)
@@ -701,9 +708,16 @@ var BOSS_NAMES=['The Invader','Void Crusher','Nebula Tyrant','Star Devourer','Co
 function startGame(){
  document.getElementById('lobby').classList.remove('active');
  document.getElementById('game-screen').classList.add('active');
- canvas.width=W;canvas.height=H;
+ resizeGame();canvas.width=W;canvas.height=H;
  document.getElementById('hmode').textContent=gameMode==='pvp'?'1v1 PVP':gameMode==='boss_rush'?'BOSS RUSH':'CLASSIC';
- level=1;score=0;lives=3;inv=0;bossStage=1;px=W/2;py=H-80;
+ level=1;score=0;lives=3;inv=0;bossStage=1;
+ // PVP: P1 starts left, P2 starts right, both in middle height
+ if(gameMode==='pvp'){
+  px = myPid===1 ? W/4 : W*3/4;
+  py = H/2;
+ } else {
+  px=W/2;py=H-80;
+ }
  buls=[];abuls=[];bbuls=[];parts=[];flts=[];
  pvpLives={};pvpDead={};pvpWinner=0;remoteBullets={};
  pvpLives[myPid]=3;
@@ -791,17 +805,33 @@ function gtick(ts){if(!running)return;var dt=Math.min((ts-lt)/16.67,3);lt=ts;upd
 
 function update(dt){
  // Movement
- if((keys['ArrowLeft']||keys['a']||tL)&&px>25)px-=6*dt;
- if((keys['ArrowRight']||keys['d']||tR)&&px<W-25)px+=6*dt;
- if((keys[' ']||keys['ArrowUp']||tF)&&scd<=0){fire();scd=11;}
+ var spd=6;
+ if(gameMode==='pvp'){
+  // PVP: move up/down within your half
+  if((keys['ArrowUp']||keys['w']||tL)&&py>60)py-=spd*dt;
+  if((keys['ArrowDown']||keys['s']||tR)&&py<H-40)py+=spd*dt;
+  if((keys[' ']||keys['ArrowLeft']||keys['ArrowRight']||tF)&&scd<=0){fire();scd=11;}
+ } else {
+  if((keys['ArrowLeft']||keys['a']||tL)&&px>25)px-=spd*dt;
+  if((keys['ArrowRight']||keys['d']||tR)&&px<W-25)px+=spd*dt;
+  if((keys[' ']||keys['ArrowUp']||tF)&&scd<=0){fire();scd=11;}
+ }
  if(scd>0)scd-=dt;if(inv>0)inv-=dt;
 
  // Bullets — faster
- buls.forEach(function(b){b.y-=10*dt;});buls=buls.filter(function(b){return b.y>0;});
+ buls.forEach(function(b){
+  if(b.pvp){b.x+=(b.dx||0)*dt;b.y+=(b.dy||0)*dt;}
+  else{b.y-=10*dt;}
+ });
+ buls=buls.filter(function(b){return b.pvp?(b.x>0&&b.x<W):(b.y>0);});
  // Update remote bullets (from other players)
  Object.keys(remoteBullets).forEach(function(pid){
-  remoteBullets[pid].forEach(function(b){b.y-=10*dt;b.ttl--;});
-  remoteBullets[pid]=remoteBullets[pid].filter(function(b){return b.y>0&&b.ttl>0;});
+  remoteBullets[pid].forEach(function(b){
+   if(b.pvp){b.x+=(b.dx||0)*dt;b.y+=(b.dy||0)*dt;}
+   else{b.y-=10*dt;}
+   b.ttl--;
+  });
+  remoteBullets[pid]=remoteBullets[pid].filter(function(b){return (b.pvp?(b.x>0&&b.x<W):(b.y>0))&&b.ttl>0;});
  });  // was 9
  abuls.forEach(function(b){b.y+=4.5*dt;});abuls=abuls.filter(function(b){return b.y<H;});
  bbuls.forEach(function(b){b.x+=b.dx*dt;b.y+=b.dy*dt;});bbuls=bbuls.filter(function(b){return b.y<H&&b.x>0&&b.x<W;});
@@ -943,7 +973,14 @@ function pvpEnd(){
 function fire(){
  var laser=LA[PD.active_laser||'green'];
  var color=laser.color||(function(){var t=Date.now()/200;return 'rgb('+Math.floor(127+127*Math.sin(t))+','+Math.floor(127+127*Math.sin(t+2))+','+Math.floor(127+127*Math.sin(t+4))+')';})();
- var b={x:px,y:py-20,color:color};
+ var b;
+ if(gameMode==='pvp'){
+  // P1 shoots RIGHT across divider, P2 shoots LEFT across divider
+  var spd=14;
+  b={x:px,y:py,dx:myPid===1?spd:-spd,dy:0,color:color,pvp:true};
+ } else {
+  b={x:px,y:py-20,dx:0,dy:0,color:color};
+ }
  buls.push(b);
  if(isMP)wsnd({type:'bullet_fired',data:b});
 }
@@ -1000,22 +1037,49 @@ function render(){
    ctx.fillStyle=pcol+'aa';ctx.font="6px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText('P'+pid,op.x,op.y-36);
    // bullets handled via remoteBullets[]
   }
-  // PVP HP display per player
+  // PVP hearts for other player
   if(gameMode==='pvp'){
-   var ohp=pvpLives[pid]||0;
-   ctx.fillStyle=pcol;ctx.font="7px 'Press Start 2P'";ctx.textAlign='right';
-   ctx.fillText('P'+pid+': '+'♥'.repeat(Math.max(0,ohp)),W-10,H-30-(parseInt(pid)-2)*18);
+   var ohp2=pvpLives[pid]||0;
+   for(var hi2=0;hi2<3;hi2++){
+    ctx.font='18px serif';
+    ctx.fillStyle=hi2<ohp2?'#ff3c3c':'#333';
+    ctx.textAlign='center';
+    var opid=parseInt(pid);
+    ctx.fillText('♥',opid===1?30+hi2*24:W-30-hi2*24,30);
+   }
   }
  });
 
- // Divider line in 2+ player coop (visual only)
- if(isMP&&playerCount>=2&&gameMode!=='pvp'){
+ if(gameMode==='pvp'){
+  // Draw centre divider
+  ctx.strokeStyle='#ffffff22';ctx.lineWidth=2;ctx.setLineDash([8,14]);
+  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
+  // P1 zone label
+  ctx.fillStyle='#00ff8833';ctx.fillRect(0,0,W/2,H);
+  // P2 zone label
+  ctx.fillStyle='#ffd70022';ctx.fillRect(W/2,0,W/2,H);
+  // Zone labels
+  ctx.fillStyle='#00ff8844';ctx.font="bold 11px 'Press Start 2P'";ctx.textAlign='left';ctx.fillText('P1 ZONE',10,H-10);
+  ctx.fillStyle='#ffd70044';ctx.textAlign='right';ctx.fillText('P2 ZONE',W-10,H-10);
+  // PVP hearts for my side
+  var mhp2=pvpLives[myPid]||0;
+  for(var hi=0;hi<3;hi++){
+   ctx.font='18px serif';
+   ctx.fillStyle=hi<mhp2?'#ff3c3c':'#333';
+   ctx.textAlign='center';
+   ctx.fillText('♥',myPid===1?30+hi*24:W-30-hi*24,30);
+  }
+ } else if(isMP&&playerCount>=2){
   ctx.strokeStyle='#1a305044';ctx.lineWidth=1;ctx.setLineDash([6,12]);ctx.beginPath();ctx.moveTo(W/2,44);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
  }
 
  parts.forEach(function(p){ctx.save();ctx.globalAlpha=p.life/p.maxLife;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();ctx.restore();});
  flts.forEach(function(m){ctx.save();ctx.globalAlpha=m.life/m.maxLife;ctx.fillStyle=m.color;ctx.font="bold 13px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText(m.text,m.x,m.y);ctx.restore();});
  if(gameMode==='boss_rush'&&!boss){ctx.fillStyle='#ff880077';ctx.font="10px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText('NEXT BOSS INCOMING...',W/2,H/2);}
+ if(gameMode==='pvp'&&!pvpGameStarted){
+  ctx.fillStyle='#ffffff88';ctx.font="9px 'Press Start 2P'";ctx.textAlign='center';
+  ctx.fillText(myPid===1?'W/S to move  SPACE to shoot':'UP/DOWN to move  SPACE to shoot',W/2,H/2+20);
+ }
 }
 
 function dPlanet(cx,cy,lv){
@@ -1061,7 +1125,14 @@ function gameOver(){
 }
 function restartGame(){
  document.getElementById('msg-ov').classList.remove('show');
- level=1;score=0;lives=3;inv=0;bossStage=1;px=W/2;py=H-80;
+ level=1;score=0;lives=3;inv=0;bossStage=1;
+ // PVP: P1 starts left, P2 starts right, both in middle height
+ if(gameMode==='pvp'){
+  px = myPid===1 ? W/4 : W*3/4;
+  py = H/2;
+ } else {
+  px=W/2;py=H-80;
+ }
  buls=[];abuls=[];bbuls=[];parts=[];flts=[];barriers=[];
  pvpLives={};pvpDead={};pvpWinner=0;pvpLives[myPid]=3;pvpGameStarted=false;setTimeout(function(){pvpGameStarted=true;},5000);
  initLevel();running=true;requestAnimationFrame(gtick);
