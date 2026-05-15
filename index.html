@@ -164,6 +164,11 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
     <button class="btn p" onclick="openLocker()">LOCKER</button>
     <button class="btn o" id="friends-btn" onclick="openFriends()" style="color:var(--o);border-color:var(--o);">FRIENDS</button>
    </div>
+   <div class="brow">
+    <button class="btn y" onclick="openWheel()" style="color:#ff44ff;border-color:#ff44ff;">🎡 SPIN WHEEL</button>
+    <button class="btn g" onclick="openComp()">🏆 COMPETITION</button>
+    <button class="btn c" onclick="openLeaderboard()">📊 LEADERBOARD</button>
+   </div>
    <div class="st" style="color:var(--c);font-size:8px;">👤 <span id="lname" style="color:var(--y);">...</span></div>
    <div class="st">Coins: <span id="lcc">0</span> | XP: <span id="lcx">0</span> | Tier: <span id="lct">0</span>/50</div>
   </div>
@@ -283,6 +288,50 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
  <div class="mb mf" id="bf">FIRE</div>
 </div>
 
+<!-- SPIN WHEEL -->
+<div id="wheel-ov" class="ov">
+ <div class="ot">🎡 SPIN THE WHEEL</div>
+ <div class="wheel-cost">Cost: <span id="wheel-cost-display">200</span> coins per spin</div>
+ <canvas id="wheel-canvas" width="320" height="320"></canvas>
+ <div class="wheel-prize" id="wheel-prize">Press SPIN to try your luck!</div>
+ <button class="btn y" id="spin-btn" onclick="spinWheel()" style="margin:10px 0;padding:14px 30px;font-size:11px;">SPIN! 🎡</button>
+ <div class="st">Coins: <span id="wheel-coins">0</span></div>
+ <button class="btn r" onclick="closeWheel()" style="margin-top:8px;">CLOSE</button>
+</div>
+
+<!-- COMPETITION -->
+<div id="comp-ov" class="ov">
+ <div class="ot">🏆 COMPETITIONS</div>
+ <div class="os">8 players — winner takes all skins and coins!</div>
+ <div id="comp-list" style="width:100%;max-width:500px;"></div>
+ <div style="font-size:7px;color:var(--c);margin:10px 0;" id="comp-msg"></div>
+ <button class="btn r" onclick="closeComp()">CLOSE</button>
+</div>
+
+<!-- COMP WAITING LOBBY -->
+<div id="comp-wait-ov" style="position:fixed;inset:0;background:#000000ee;z-index:38;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+ <div style="font-family:'Orbitron',monospace;font-size:18px;font-weight:900;color:var(--y);">COMPETITION LOBBY</div>
+ <div style="font-size:8px;color:var(--c);" id="comp-wait-name">...</div>
+ <div style="font-size:28px;font-weight:900;color:var(--g);" id="comp-wait-count">0/8</div>
+ <div style="font-size:7px;color:#ffffff55;">Waiting for 8 players...</div>
+ <div id="comp-wait-players" style="display:flex;flex-wrap:wrap;gap:8px;max-width:400px;justify-content:center;margin:8px 0;"></div>
+ <div style="font-size:7px;color:var(--y);" id="comp-wait-prize">Prize: ...</div>
+ <button class="btn r" onclick="leaveComp()">LEAVE</button>
+</div>
+
+<!-- LEADERBOARD -->
+<div id="lb-ov" class="ov">
+ <div class="ot">📊 LEADERBOARD</div>
+ <div class="tabs" id="lb-tabs">
+  <button class="tab on" onclick="lbTab('score',this)">TOP SCORE</button>
+  <button class="tab" onclick="lbTab('level',this)">TOP LEVEL</button>
+  <button class="tab" onclick="lbTab('wins',this)">MOST WINS</button>
+ </div>
+ <div id="lb-list" style="width:100%;max-width:500px;max-height:400px;overflow-y:auto;"></div>
+ <div style="font-size:7px;color:#ffffff44;margin:10px 0;">Updates live as players finish games</div>
+ <button class="btn r" onclick="closeLB()">CLOSE</button>
+</div>
+
 <!-- SHOP -->
 <div id="shop-ov" class="ov">
  <div class="ot">SHOP</div>
@@ -354,6 +403,332 @@ function resizeGame(){
  var sc2=document.getElementById('sc');
  if(sc2){sc2.width=W;sc2.height=H;}
 }
+
+// ═══════════════════════════════════════════════════
+// SPIN THE WHEEL
+// ═══════════════════════════════════════════════════
+var WHEEL_COST = 200;
+var WHEEL_PRIZES = [
+ {label:'100 Coins',  type:'coins',  value:100,  color:'#ffd700', weight:30},
+ {label:'200 Coins',  type:'coins',  value:200,  color:'#ffaa00', weight:20},
+ {label:'500 Coins',  type:'coins',  value:500,  color:'#ff8800', weight:10},
+ {label:'1000 Coins', type:'coins',  value:1000, color:'#ff4400', weight:5},
+ {label:'Neon Trail', type:'effect', value:'neon_trail',  color:'#00d4ff', weight:12},
+ {label:'Fire Trail', type:'effect', value:'fire_trail',  color:'#ff6600', weight:12},
+ {label:'Blue Laser', type:'laser',  value:'blue',        color:'#4499ff', weight:15},
+ {label:'Red Laser',  type:'laser',  value:'red',         color:'#ff4444', weight:15},
+ {label:'JACKPOT!',   type:'ship',   value:'nebula_wing', color:'#ff00ff', weight:3},
+ {label:'Try Again!', type:'none',   value:0,             color:'#333333', weight:30},
+];
+var wheelSpinning = false;
+var wheelAngle = 0;
+var wheelTarget = 0;
+var wheelAnimId = null;
+var wheelResult = null;
+
+function openWheel(){
+ PD=ld();
+ document.getElementById('wheel-coins').textContent=PD.coins;
+ document.getElementById('wheel-cost-display').textContent=WHEEL_COST;
+ document.getElementById('wheel-prize').textContent='Press SPIN to try your luck!';
+ document.getElementById('spin-btn').disabled=false;
+ drawWheel(0);
+ document.getElementById('wheel-ov').classList.add('open');
+}
+function closeWheel(){document.getElementById('wheel-ov').classList.remove('open');}
+
+function drawWheel(angle){
+ var c=document.getElementById('wheel-canvas');
+ if(!c)return;
+ var ctx2=c.getContext('2d');
+ var cx=160,cy=160,r=148;
+ var total=WHEEL_PRIZES.reduce(function(a,p){return a+p.weight;},0);
+ var start=angle;
+ ctx2.clearRect(0,0,320,320);
+ WHEEL_PRIZES.forEach(function(prize){
+  var slice=(prize.weight/total)*Math.PI*2;
+  ctx2.beginPath();ctx2.moveTo(cx,cy);
+  ctx2.arc(cx,cy,r,start,start+slice);ctx2.closePath();
+  ctx2.fillStyle=prize.color;ctx2.fill();
+  ctx2.strokeStyle='#000';ctx2.lineWidth=2;ctx2.stroke();
+  // Label
+  ctx2.save();ctx2.translate(cx,cy);ctx2.rotate(start+slice/2);
+  ctx2.textAlign='right';ctx2.fillStyle='#fff';
+  ctx2.font="bold 9px 'Press Start 2P'";
+  ctx2.shadowColor='#000';ctx2.shadowBlur=4;
+  ctx2.fillText(prize.label,r-8,4);
+  ctx2.restore();
+  start+=slice;
+ });
+ // Center circle
+ ctx2.beginPath();ctx2.arc(cx,cy,18,0,Math.PI*2);
+ ctx2.fillStyle='#050a18';ctx2.fill();
+ ctx2.strokeStyle='#ffd700';ctx2.lineWidth=3;ctx2.stroke();
+ // Pointer
+ ctx2.beginPath();ctx2.moveTo(cx+r+10,cy);ctx2.lineTo(cx+r-14,cy-10);ctx2.lineTo(cx+r-14,cy+10);
+ ctx2.closePath();ctx2.fillStyle='#ff3c3c';ctx2.fill();
+}
+
+function spinWheel(){
+ PD=ld();
+ if(PD.coins<WHEEL_COST){
+  document.getElementById('wheel-prize').textContent='Need '+WHEEL_COST+' coins to spin!';
+  return;
+ }
+ if(wheelSpinning)return;
+ PD.coins-=WHEEL_COST;sd(PD);
+ document.getElementById('wheel-coins').textContent=PD.coins;
+ document.getElementById('spin-btn').disabled=true;
+ document.getElementById('wheel-prize').textContent='Spinning...';
+ wheelSpinning=true;
+
+ // Pick result weighted
+ var total=WHEEL_PRIZES.reduce(function(a,p){return a+p.weight;},0);
+ var rand=Math.random()*total;
+ var acc=0,resultIdx=0;
+ for(var i=0;i<WHEEL_PRIZES.length;i++){acc+=WHEEL_PRIZES[i].weight;if(rand<=acc){resultIdx=i;break;}}
+ wheelResult=WHEEL_PRIZES[resultIdx];
+
+ // Calculate target angle so result prize is at pointer (right side = 0 radians)
+ var sliceTotal=0;
+ for(var i2=0;i2<resultIdx;i2++)sliceTotal+=WHEEL_PRIZES[i2].weight;
+ var prizeStart=(sliceTotal/total)*Math.PI*2;
+ var prizeSlice=(wheelResult.weight/total)*Math.PI*2;
+ var prizeMid=prizeStart+prizeSlice/2;
+ // Pointer is at angle 0 (right), wheel spins so target prize ends at 0
+ wheelTarget=wheelAngle + Math.PI*2*5 + (Math.PI*2 - prizeMid);
+
+ var startAngle=wheelAngle;
+ var startTime=null;
+ var duration=4500;
+ function animate(ts){
+  if(!startTime)startTime=ts;
+  var progress=(ts-startTime)/duration;
+  if(progress>=1){
+   progress=1;
+   wheelSpinning=false;
+   wheelAngle=wheelTarget%(Math.PI*2);
+   grantWheelPrize();
+   document.getElementById('spin-btn').disabled=false;
+   return;
+  }
+  // Ease out
+  var ease=1-Math.pow(1-progress,4);
+  var current=startAngle+(wheelTarget-startAngle)*ease;
+  wheelAngle=current%(Math.PI*2);
+  drawWheel(current);
+  requestAnimationFrame(animate);
+ }
+ requestAnimationFrame(animate);
+}
+
+function grantWheelPrize(){
+ PD=ld();
+ var p=wheelResult;
+ var msg='';
+ if(p.type==='coins'){PD.coins+=p.value;msg='You won '+p.value+' coins!';sd(PD);}
+ else if(p.type==='effect'&&PD.owned_effects.indexOf(p.value)<0){PD.owned_effects.push(p.value);PD.active_effect=p.value;msg='You won '+p.label+'!';sd(PD);}
+ else if(p.type==='laser'&&PD.owned_lasers.indexOf(p.value)<0){PD.owned_lasers.push(p.value);PD.active_laser=p.value;msg='You won '+p.label+'!';sd(PD);}
+ else if(p.type==='ship'&&PD.owned_ships.indexOf(p.value)<0){PD.owned_ships.push(p.value);PD.active_ship=p.value;msg='JACKPOT! '+p.label+' unlocked!';sd(PD);}
+ else if(p.type==='none'){msg='Better luck next time!';}
+ else{PD.coins+=50;msg='Already owned — 50 coins instead!';sd(PD);}
+ document.getElementById('wheel-prize').textContent=msg;
+ document.getElementById('wheel-coins').textContent=PD.coins;
+ updLobby();
+ drawWheel(wheelAngle);
+}
+
+// ═══════════════════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════════════════
+var lbData = {score:[], level:[], wins:[]};
+var lbCategory = 'score';
+
+function openLeaderboard(){
+ fetchLeaderboard();
+ document.getElementById('lb-ov').classList.add('open');
+}
+function closeLB(){document.getElementById('lb-ov').classList.remove('open');}
+function lbTab(cat,btn){
+ lbCategory=cat;
+ document.querySelectorAll('#lb-ov .tab').forEach(function(t){t.classList.remove('on');});
+ btn.classList.add('on');
+ renderLB();
+}
+
+function fetchLeaderboard(){
+ // Load from localStorage (local scores) + server scores via WS
+ var myScore={name:myName||'YOU',score:parseInt(localStorage.getItem('si_best_score')||'0'),level:parseInt(localStorage.getItem('si_best_level')||'1'),wins:parseInt(localStorage.getItem('si_wins')||'0')};
+ // Request global leaderboard from server
+ if(friendsWS&&friendsWS.readyState===WebSocket.OPEN){
+  friendsWS.send(JSON.stringify({type:'get_leaderboard'}));
+ }
+ // Show local for now
+ lbData.score=[myScore];
+ lbData.level=[myScore];
+ lbData.wins=[myScore];
+ renderLB();
+}
+
+function renderLB(){
+ var list=document.getElementById('lb-list');if(!list)return;
+ var data=lbData[lbCategory]||[];
+ // Sort
+ data.sort(function(a,b){return (b[lbCategory]||0)-(a[lbCategory]||0);});
+ if(data.length===0){list.innerHTML='<div style="font-size:7px;color:#ffffff33;text-align:center;padding:20px;">No scores yet! Play some games.</div>';return;}
+ list.innerHTML='';
+ data.forEach(function(entry,i){
+  var row=document.createElement('div');
+  var isMe=(entry.name===myName);
+  row.className='lb-row'+(isMe?' lb-me':'');
+  var rankClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
+  var val=lbCategory==='score'?entry.score.toLocaleString():lbCategory==='level'?'Lvl '+entry.level:entry.wins+' wins';
+  row.innerHTML='<span class="lb-rank '+rankClass+'">'+medal+'</span><span class="lb-name">'+(entry.name||'???')+(isMe?' (YOU)':'')+'</span><span class="lb-score">'+val+'</span>';
+  list.appendChild(row);
+ });
+}
+
+function submitScore(score2, level2){
+ // Save best score locally
+ var best=parseInt(localStorage.getItem('si_best_score')||'0');
+ if(score2>best)localStorage.setItem('si_best_score',score2);
+ var bestL=parseInt(localStorage.getItem('si_best_level')||'1');
+ if(level2>bestL)localStorage.setItem('si_best_level',level2);
+ // Send to server for global leaderboard
+ if(friendsWS&&friendsWS.readyState===WebSocket.OPEN&&myName){
+  friendsWS.send(JSON.stringify({type:'submit_score',name:myName,score:score2,level:level2}));
+ }
+}
+
+function recordWin(){
+ var wins=parseInt(localStorage.getItem('si_wins')||'0')+1;
+ localStorage.setItem('si_wins',wins);
+ if(friendsWS&&friendsWS.readyState===WebSocket.OPEN&&myName){
+  friendsWS.send(JSON.stringify({type:'submit_win',name:myName,wins:wins}));
+ }
+}
+
+// ═══════════════════════════════════════════════════
+// COMPETITIONS
+// ═══════════════════════════════════════════════════
+var COMPETITIONS = [
+ {id:'classic_cup',   name:'Classic Cup',     mode:'normal',    prize_coins:2000, prize_skin:'retro_gold',    desc:'Highest score wins!',        icon:'👾'},
+ {id:'boss_blitz',    name:'Boss Blitz',      mode:'boss_rush', prize_coins:3000, prize_skin:'dark_matter',   desc:'Survive the most boss stages!',icon:'💀'},
+ {id:'pvp_tournament',name:'PVP Tournament',  mode:'pvp',       prize_coins:2500, prize_skin:'crystal_void',  desc:'Last ship standing wins!',    icon:'⚔️'},
+ {id:'speed_run',     name:'Speed Run',       mode:'normal',    prize_coins:1500, prize_skin:'plasma_red',    desc:'Beat level 10 the fastest!',  icon:'⚡'},
+];
+var myCompRoom = null;
+var compPlayers = [];
+
+function openComp(){
+ renderCompList();
+ document.getElementById('comp-ov').classList.add('open');
+}
+function closeComp(){document.getElementById('comp-ov').classList.remove('open');}
+
+function renderCompList(){
+ var list=document.getElementById('comp-list');list.innerHTML='';
+ COMPETITIONS.forEach(function(comp){
+  var card=document.createElement('div');
+  card.className='comp-card';
+  card.innerHTML=
+   '<div style="font-size:26px;">'+comp.icon+'</div>'+
+   '<div class="comp-info">'+
+    '<div class="comp-title">'+comp.name+'</div>'+
+    '<div class="comp-detail">'+comp.desc+'<br>Mode: '+comp.mode.replace('_',' ').toUpperCase()+'</div>'+
+   '</div>'+
+   '<div style="text-align:right;">'+
+    '<div class="comp-prize">'+comp.prize_coins+' 🪙</div>'+
+    '<div style="font-size:5px;color:var(--p);margin-bottom:6px;">+'+((SK[comp.prize_skin]||{name:'Skin'}).name)+'</div>'+
+    '<button class="btn g" style="font-size:6px;padding:6px 10px;" id="join-comp-'+comp.id+'">JOIN</button>'+
+   '</div>';
+  // Set onclick properly
+  (function(c){
+   card.querySelector('button').onclick=function(){joinComp(c);};
+  })(comp);
+  list.appendChild(card);
+ });
+}
+
+function joinComp(comp){
+ if(!myName){alert('Set your name first!');return;}
+ myCompRoom=comp;
+ compPlayers=[myName];
+ document.getElementById('comp-wait-name').textContent=comp.icon+' '+comp.name;
+ document.getElementById('comp-wait-prize').textContent='Prize: '+comp.prize_coins+' coins + '+((SK[comp.prize_skin]||{name:'Skin'}).name)+' skin!';
+ updateCompWaitUI();
+ document.getElementById('comp-wait-ov').style.display='flex';
+ closeComp();
+ // Tell server we joined this competition
+ if(friendsWS&&friendsWS.readyState===WebSocket.OPEN){
+  friendsWS.send(JSON.stringify({type:'join_comp',comp_id:comp.id,name:myName}));
+ }
+}
+
+function leaveComp(){
+ if(friendsWS&&friendsWS.readyState===WebSocket.OPEN&&myCompRoom){
+  friendsWS.send(JSON.stringify({type:'leave_comp',comp_id:myCompRoom.id,name:myName}));
+ }
+ myCompRoom=null;compPlayers=[];
+ document.getElementById('comp-wait-ov').style.display='none';
+}
+
+function updateCompWaitUI(){
+ document.getElementById('comp-wait-count').textContent=compPlayers.length+'/8';
+ var plist=document.getElementById('comp-wait-players');plist.innerHTML='';
+ compPlayers.forEach(function(name){
+  var chip=document.createElement('div');
+  chip.style.cssText='font-size:7px;padding:5px 10px;border:1px solid var(--g);color:var(--g);background:#00ff8810;';
+  chip.textContent=name;plist.appendChild(chip);
+ });
+ // Fill empty slots
+ for(var i=compPlayers.length;i<8;i++){
+  var empty=document.createElement('div');
+  empty.style.cssText='font-size:7px;padding:5px 10px;border:1px solid #333;color:#333;';
+  empty.textContent='Waiting...';plist.appendChild(empty);
+ }
+}
+
+function handleCompMsg(m){
+ if(m.type==='comp_update'){
+  compPlayers=m.players||[];
+  updateCompWaitUI();
+  document.getElementById('comp-msg') && (document.getElementById('comp-msg').textContent=compPlayers.length+'/8 players ready');
+ } else if(m.type==='comp_start'){
+  document.getElementById('comp-wait-ov').style.display='none';
+  // Start the game in competition mode
+  pendingMode=myCompRoom.mode;
+  isMP=true;
+  playerCount=8;
+  startGame();
+ } else if(m.type==='comp_winner'){
+  // Grant prizes
+  if(m.winner===myName){
+   PD=ld();
+   PD.coins+=myCompRoom.prize_coins;
+   if(PD.owned_ships.indexOf(myCompRoom.prize_skin)<0)PD.owned_ships.push(myCompRoom.prize_skin);
+   sd(PD);updLobby();
+   showFchatNotif('YOU WON the '+myCompRoom.name+'! Prizes awarded!');
+   recordWin();
+  }
+ } else if(m.type==='leaderboard_data'){
+  lbData=m.data||lbData;
+  renderLB();
+ }
+}
+
+// Hook into friendsWS message handler
+var _origHandleFriendsMsg=handleFriendsMsg;
+handleFriendsMsg=function(m){
+ _origHandleFriendsMsg(m);
+ handleCompMsg(m);
+};
+
+// ── Submit score when game ends ──
+var _origGameOver=gameOver;
+// Will be overridden after gameOver is defined — see below
+
 window.addEventListener('resize',function(){resizeGame();});
 // Check if player already has a name on load
 checkName();
@@ -1249,6 +1624,7 @@ function pvpDie(){
 function pvpEnd(){
  running=false;
  var won=pvpWinner===myPid;
+ if(won)recordWin();
  document.getElementById('mt').textContent=won?'VICTORY!':'ELIMINATED!';
  document.getElementById('mt').style.color=won?'#00ff88':'#ff3c3c';
  document.getElementById('ms').textContent='Score: '+score+(won?'\n\nYOU WIN!':'\nPlayer '+pvpWinner+' wins!');
