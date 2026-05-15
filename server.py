@@ -3,13 +3,12 @@ from aiohttp import web, WSMsgType
 
 PORT = int(os.environ.get("PORT", 10000))
 
-# Game rooms
 rooms = {}
 ws_info = {}
-
-# Friends/presence system
-named_players = {}   # name -> ws
-ws_names = {}        # ws -> name
+named_players = {}
+ws_names = {}
+leaderboard = {}
+comp_rooms = {}
 
 def make_code():
     while True:
@@ -29,26 +28,12 @@ async def broadcast(code, msg, exclude_pid=None):
         try: await w.send_str(data)
         except: pass
 
-async def notify_friends_online(name):
-    """Tell all of this player's friends that they came online."""
-    # We broadcast to everyone who has this name in their friends list
-    for ws, wname in list(ws_names.items()):
-        if wname != name:
-            await tx(ws, {"type": "friend_online", "name": name})
-
-async def notify_friends_offline(name):
-    for ws, wname in list(ws_names.items()):
-        if wname != name:
-            await tx(ws, {"type": "friend_offline", "name": name})
-
 async def cleanup(ws):
-    # Friends cleanup
     name = ws_names.pop(ws, None)
     if name:
         named_players.pop(name, None)
-        await notify_friends_offline(name)
-
-    # Game cleanup
+        for w in list(ws_names.keys()):
+            await tx(w, {"type":"friend_offline","name":name})
     info = ws_info.pop(ws, None)
     if not info: return
     code, pid = info["code"], info["pid"]
@@ -69,23 +54,21 @@ async def wshandler(request):
             if msg.type != WSMsgType.TEXT: continue
             try: d = json.loads(msg.data)
             except: continue
-            t = d.get("type", "")
+            t = d.get("type","")
 
-            # ── PRESENCE / FRIENDS ──
-            if t == "register":
+            if t == "ping":
+                await tx(ws, {"type":"pong"})
+
+            elif t == "register":
                 name = str(d.get("name","")).upper().strip()[:16]
                 if not name: continue
-                if name in named_players and named_players[name] is not ws:
-                    await tx(ws, {"type":"name_taken"})
-                    continue
                 named_players[name] = ws
                 ws_names[ws] = name
-                await notify_friends_online(name)
+                for w in list(ws_names.keys()):
+                    if w is not ws: await tx(w, {"type":"friend_online","name":name})
 
             elif t == "friends_list":
-                # Client tells us their friends — send back who is online
-                flist = d.get("friends", [])
-                for fname in flist:
+                for fname in d.get("friends",[]):
                     fname = str(fname).upper().strip()
                     if fname in named_players:
                         await tx(ws, {"type":"friend_online","name":fname})
@@ -96,23 +79,62 @@ async def wshandler(request):
                     await tx(ws, {"type":"friend_online","name":name})
 
             elif t == "friend_msg":
-                to_name = str(d.get("to","")).upper().strip()
+                to = str(d.get("to","")).upper().strip()
                 text = str(d.get("text",""))[:200]
-                from_name = ws_names.get(ws, "UNKNOWN")
-                target_ws = named_players.get(to_name)
-                if target_ws:
-                    await tx(target_ws, {"type":"friend_msg","from":from_name,"text":text})
-                else:
-                    await tx(ws, {"type":"friend_msg_failed","reason":to_name+" is offline"})
+                frm = ws_names.get(ws,"?")
+                tw = named_players.get(to)
+                if tw: await tx(tw, {"type":"friend_msg","from":frm,"text":text})
 
-            elif t == "ping":
-                await tx(ws, {"type":"pong"})
+            elif t == "submit_score":
+                name = str(d.get("name","")).upper().strip()
+                if name:
+                    e = leaderboard.get(name, {"name":name,"score":0,"level":1,"wins":0})
+                    e["score"] = max(e["score"], int(d.get("score",0)))
+                    e["level"] = max(e["level"], int(d.get("level",1)))
+                    leaderboard[name] = e
 
-            # ── GAME ROOMS ──
+            elif t == "submit_win":
+                name = str(d.get("name","")).upper().strip()
+                if name:
+                    e = leaderboard.get(name, {"name":name,"score":0,"level":1,"wins":0})
+                    e["wins"] = int(d.get("wins",0))
+                    leaderboard[name] = e
+
+            elif t == "get_leaderboard":
+                data = list(leaderboard.values())
+                await tx(ws, {"type":"leaderboard_data","data":{"score":data,"level":data,"wins":data}})
+
+            elif t == "join_comp":
+                comp_id = str(d.get("comp_id",""))
+                name = str(d.get("name","")).upper().strip()
+                if not comp_id or not name: continue
+                if comp_id not in comp_rooms:
+                    comp_rooms[comp_id] = {"players":[],"ws_map":{}}
+                room = comp_rooms[comp_id]
+                if name not in room["players"] and len(room["players"]) < 8:
+                    room["players"].append(name)
+                    room["ws_map"][name] = ws
+                for n,w in list(room["ws_map"].items()):
+                    await tx(w, {"type":"comp_update","comp_id":comp_id,"players":room["players"]})
+                if len(room["players"]) >= 8:
+                    for n,w in list(room["ws_map"].items()):
+                        await tx(w, {"type":"comp_start","comp_id":comp_id})
+                    comp_rooms.pop(comp_id, None)
+
+            elif t == "leave_comp":
+                comp_id = str(d.get("comp_id",""))
+                name = str(d.get("name","")).upper().strip()
+                room = comp_rooms.get(comp_id)
+                if room:
+                    room["players"] = [p for p in room["players"] if p != name]
+                    room["ws_map"].pop(name, None)
+                    for n,w in list(room["ws_map"].items()):
+                        await tx(w, {"type":"comp_update","comp_id":comp_id,"players":room["players"]})
+
             elif t == "create_room":
                 code = make_code()
                 mode = d.get("mode","coop")
-                max_p = max(2, min(4, int(d.get("max_players",2))))
+                max_p = max(2,min(4,int(d.get("max_players",2))))
                 rooms[code] = {"players":{1:ws},"mode":mode,"max_players":max_p}
                 ws_info[ws] = {"code":code,"pid":1}
                 await tx(ws, {"type":"room_created","room_code":code,"player_id":1,"mode":mode,"max_players":max_p})
@@ -123,7 +145,7 @@ async def wshandler(request):
                 if not room: await tx(ws, {"type":"error","msg":"Room "+code+" not found!"})
                 elif len(room["players"]) >= room["max_players"]: await tx(ws, {"type":"error","msg":"Room is full!"})
                 else:
-                    pid = len(room["players"]) + 1
+                    pid = len(room["players"])+1
                     room["players"][pid] = ws
                     ws_info[ws] = {"code":code,"pid":pid}
                     count = len(room["players"])
@@ -135,7 +157,7 @@ async def wshandler(request):
             elif t == "chat":
                 info = ws_info.get(ws)
                 if info:
-                    name = ws_names.get(ws, "P"+str(info["pid"]))
+                    name = ws_names.get(ws,"P"+str(info["pid"]))
                     await broadcast(info["code"],{"type":"chat","player_id":info["pid"],"name":name,"text":str(d.get("text",""))[:80]})
 
             else:
