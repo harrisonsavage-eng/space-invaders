@@ -316,6 +316,7 @@ body{background:var(--dk);color:#fff;font-family:'Press Start 2P',monospace;over
  <div style="font-size:7px;color:#ffffff55;">Waiting for 8 players...</div>
  <div id="comp-wait-players" style="display:flex;flex-wrap:wrap;gap:8px;max-width:400px;justify-content:center;margin:8px 0;"></div>
  <div style="font-size:7px;color:var(--y);" id="comp-wait-prize">Prize: ...</div>
+ <div style="font-size:7px;color:var(--c);margin-top:6px;" id="comp-countdown">Waiting for players...</div>
  <button class="btn r" onclick="leaveComp()">LEAVE</button>
 </div>
 
@@ -651,6 +652,9 @@ function renderCompList(){
  });
 }
 
+var compCountdownTimer=null;
+var compCountdownSecs=50;
+
 function joinComp(comp){
  if(!myName){alert('Set your name first!');return;}
  myCompRoom=comp;
@@ -660,17 +664,62 @@ function joinComp(comp){
  updateCompWaitUI();
  document.getElementById('comp-wait-ov').style.display='flex';
  closeComp();
- // Tell server we joined this competition
  if(friendsWS&&friendsWS.readyState===WebSocket.OPEN){
   friendsWS.send(JSON.stringify({type:'join_comp',comp_id:comp.id,name:myName}));
  }
+ // Start 50 second countdown
+ compCountdownSecs=50;
+ if(compCountdownTimer)clearInterval(compCountdownTimer);
+ compCountdownTimer=setInterval(function(){
+  compCountdownSecs--;
+  var countEl=document.getElementById('comp-countdown');
+  if(countEl)countEl.textContent='Starting in '+compCountdownSecs+'s (filling with bots if needed)';
+  if(compCountdownSecs<=0){
+   clearInterval(compCountdownTimer);
+   compCountdownTimer=null;
+   // Fill remaining spots with bots and start
+   fillWithBotsAndStart();
+  }
+ },1000);
+}
+
+var BOT_NAMES=['ALIEN_HUNTER','STAR_SLAYER','VOID_REAPER','COSMIC_ACE','NOVA_BLAST','PIXEL_FURY','DARK_ANGEL','LASER_WOLF'];
+
+function fillWithBotsAndStart(){
+ if(!myCompRoom)return;
+ // Fill remaining slots with bots
+ var bots=[];
+ while(compPlayers.length<8){
+  var botName=BOT_NAMES[compPlayers.length-1]||'BOT_'+(compPlayers.length);
+  if(compPlayers.indexOf(botName)<0){compPlayers.push(botName);bots.push(botName);}
+  else compPlayers.push('BOT_'+compPlayers.length);
+ }
+ updateCompWaitUI();
+ // Brief pause then start
+ setTimeout(function(){
+  document.getElementById('comp-wait-ov').style.display='none';
+  startCompGame(bots);
+ },1500);
+}
+
+function startCompGame(bots){
+ if(!myCompRoom)return;
+ // Store bots for this comp
+ window.compBots=bots||[];
+ pendingMode=myCompRoom.mode==='pvp'?'pvp':'normal';
+ isMP=true;
+ playerCount=8;
+ gameMode=pendingMode;
+ isCompMode=true;
+ startGame();
 }
 
 function leaveComp(){
+ if(compCountdownTimer){clearInterval(compCountdownTimer);compCountdownTimer=null;}
  if(friendsWS&&friendsWS.readyState===WebSocket.OPEN&&myCompRoom){
   friendsWS.send(JSON.stringify({type:'leave_comp',comp_id:myCompRoom.id,name:myName}));
  }
- myCompRoom=null;compPlayers=[];
+ myCompRoom=null;compPlayers=[];isCompMode=false;
  document.getElementById('comp-wait-ov').style.display='none';
 }
 
@@ -696,11 +745,12 @@ function handleCompMsg(m){
   updateCompWaitUI();
   document.getElementById('comp-msg') && (document.getElementById('comp-msg').textContent=compPlayers.length+'/8 players ready');
  } else if(m.type==='comp_start'){
+  if(compCountdownTimer){clearInterval(compCountdownTimer);compCountdownTimer=null;}
   document.getElementById('comp-wait-ov').style.display='none';
-  // Start the game in competition mode
-  pendingMode=myCompRoom.mode;
-  isMP=true;
-  playerCount=8;
+  isCompMode=true;
+  window.compBots=[];
+  pendingMode=myCompRoom?myCompRoom.mode:'normal';
+  isMP=true;playerCount=8;
   startGame();
  } else if(m.type==='comp_winner'){
   // Grant prizes
@@ -728,6 +778,119 @@ handleFriendsMsg=function(m){
 // ── Submit score when game ends ──
 var _origGameOver=gameOver;
 // Will be overridden after gameOver is defined — see below
+
+// ═══════════════════════════════════════════════════
+// COMPETITION BOT AI
+// ═══════════════════════════════════════════════════
+var botStates={};  // botName -> {x,y,lives,dx,shootTimer,skin}
+
+function initCompBots(){
+ if(!window.compBots)return;
+ var botSkins=Object.keys(SK);
+ window.compBots.forEach(function(name,i){
+  botStates[name]={
+   x:100+i*(W/9), y:H/2+Math.sin(i)*100,
+   lives:3, dx:2+Math.random()*2,
+   dy:(Math.random()-0.5)*2,
+   shootTimer:Math.random()*60+30,
+   skin:botSkins[Math.floor(Math.random()*botSkins.length)],
+   bullets:[],dead:false
+  };
+ });
+}
+
+function updateCompBots(dt){
+ if(!window.compBots||window.compBots.length===0)return;
+ window.compBots.forEach(function(name){
+  var bot=botStates[name];
+  if(!bot||bot.dead)return;
+  // Move bot
+  bot.x+=bot.dx*dt;
+  bot.y+=bot.dy*dt;
+  // Bounce off walls
+  if(bot.x<30||bot.x>W-30)bot.dx*=-1;
+  if(bot.y<60||bot.y>H-60)bot.dy*=-1;
+  // Shoot at player
+  bot.shootTimer-=dt;
+  if(bot.shootTimer<=0){
+   bot.shootTimer=Math.random()*90+40;
+   var angle=Math.atan2(py-bot.y,px-bot.x);
+   bot.bullets.push({x:bot.x,y:bot.y,dx:Math.cos(angle)*7,dy:Math.sin(angle)*7,ttl:120});
+  }
+  // Move bullets
+  bot.bullets.forEach(function(b){b.x+=b.dx*dt;b.y+=b.dy*dt;b.ttl--;});
+  bot.bullets=bot.bullets.filter(function(b){return b.ttl>0&&b.x>0&&b.x<W&&b.y>0&&b.y<H;});
+  // Check if bot bullets hit player
+  bot.bullets.forEach(function(b,bi){
+   if(inv<=0&&Math.abs(b.x-px)<20&&Math.abs(b.y-py)<20){
+    lives--;inv=80;spawnP(px,py,'#ff0000');
+    bot.bullets.splice(bi,1);
+    if(lives<=0){gameOver();return;}
+   }
+  });
+  // Check if player bullets hit bot
+  for(var bi=buls.length-1;bi>=0;bi--){
+   var b=buls[bi];
+   if(Math.abs(b.x-bot.x)<20&&Math.abs(b.y-bot.y)<20){
+    buls.splice(bi,1);spawnP(bot.x,bot.y,'#ff8800');
+    bot.lives--;score+=300;addXP(50);
+    if(bot.lives<=0){
+     bot.dead=true;
+     showFlt(name+' ELIMINATED!','#ff3c3c');
+     // Check if all bots dead = player wins comp
+     var aliveBots=window.compBots.filter(function(n){return botStates[n]&&!botStates[n].dead;});
+     if(aliveBots.length===0){
+      compVictory();
+     }
+    }
+    break;
+   }
+  }
+ });
+}
+
+function renderCompBots(){
+ if(!window.compBots||window.compBots.length===0)return;
+ window.compBots.forEach(function(name){
+  var bot=botStates[name];
+  if(!bot||bot.dead)return;
+  // Draw bot ship (flipped - shooting down at player)
+  ctx.save();ctx.translate(bot.x,bot.y);ctx.scale(1,-1);
+  var sk=SK[bot.skin]||SK.classic;
+  ctx.fillStyle=sk.colors[0];
+  ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(-12,14);ctx.lineTo(12,14);ctx.closePath();ctx.fill();
+  ctx.restore();
+  // Bot name
+  ctx.fillStyle='#ff444488';ctx.font="6px 'Press Start 2P'";ctx.textAlign='center';
+  ctx.fillText(name,bot.x,bot.y-22);
+  // Bot lives
+  ctx.fillStyle='#ff4444';ctx.font='10px serif';
+  for(var i=0;i<bot.lives;i++)ctx.fillText('♥',bot.x-10+i*12,bot.y+28);
+  // Bot bullets
+  bot.bullets.forEach(function(b){
+   ctx.fillStyle='#ff4444';ctx.fillRect(b.x-2,b.y-5,4,10);
+  });
+ });
+}
+
+function compVictory(){
+ running=false;
+ if(isCompMode&&myCompRoom){
+  PD=ld();
+  PD.coins+=myCompRoom.prize_coins;
+  if(PD.owned_ships.indexOf(myCompRoom.prize_skin)<0)PD.owned_ships.push(myCompRoom.prize_skin);
+  PD.active_ship=myCompRoom.prize_skin;
+  sd(PD);updLobby();recordWin();
+  document.getElementById('mt').textContent='COMPETITION WON!';
+  document.getElementById('mt').style.color='#ffd700';
+  document.getElementById('ms').textContent='You defeated all '+window.compBots.length+' opponents!\n+'+myCompRoom.prize_coins+' coins\n'+((SK[myCompRoom.prize_skin]||{name:'Skin'}).name)+' skin unlocked!';
+ } else {
+  document.getElementById('mt').textContent='VICTORY!';
+  document.getElementById('mt').style.color='#00ff88';
+  document.getElementById('ms').textContent='Score: '+score;
+ }
+ document.getElementById('msg-ov').classList.add('show');
+}
 
 window.addEventListener('resize',function(){resizeGame();});
 // Check if player already has a name on load
@@ -1361,7 +1524,7 @@ var keys={},tL=false,tR=false,tF=false;
 // PVP specific
 var pvpLives={};  // pid->lives
 var pvpDead={};   // pid->bool
-var pvpWinner=0,pvpGameStarted=false;
+var pvpWinner=0,pvpGameStarted=false,isCompMode=false,compBotsAlive=[];
 
 var BOSS_NAMES=['The Invader','Void Crusher','Nebula Tyrant','Star Devourer','Cosmic Overlord','Dark Singularity','Omega Destroyer','Galaxy Ender','Entropy God'];
 
@@ -1387,7 +1550,13 @@ function startGame(){
  setTimeout(function(){pvpGameStarted=true;},5000);
  startPlayTimer();
  Object.keys(otherPlayers).forEach(function(pid){pvpLives[pid]=3;});
- initLevel();setupCtrl();running=true;requestAnimationFrame(gtick);
+ initLevel();setupCtrl();running=true;
+ // Init bots if competition mode
+ if(isCompMode&&window.compBots&&window.compBots.length>0){
+  initCompBots();
+  showFlt('COMPETITION STARTS!','#ffd700');
+ }
+ requestAnimationFrame(gtick);
  // Immediately broadcast our position so other player knows we exist
  if(isMP){
   setTimeout(function(){
@@ -1556,6 +1725,10 @@ function update(dt){
  if(gameMode!=='boss_rush'&&aliens.some(function(a){return a.y>H-100;})){gameOver();return;}
  if(gameMode!=='boss_rush'&&!aliens.length&&!boss){level++;showFlt('LEVEL '+level+'!','#00ff88');barriers=[];initLevel();if(isMP)wsnd({type:'level_up',level:level});}
  if(isMP)wsnd({type:'player_update',data:{x:px,y:py,score:score,lives:lives,skin:PD.active_ship,bullets:buls,name:myName}});
+ // Update competition bots
+ if(isCompMode&&window.compBots&&window.compBots.length>0){
+  updateCompBots(dt);
+ }
  updHUD();
 }
 
@@ -1736,6 +1909,8 @@ function render(){
 
  parts.forEach(function(p){ctx.save();ctx.globalAlpha=p.life/p.maxLife;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();ctx.restore();});
  flts.forEach(function(m){ctx.save();ctx.globalAlpha=m.life/m.maxLife;ctx.fillStyle=m.color;ctx.font="bold 13px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText(m.text,m.x,m.y);ctx.restore();});
+ // Draw competition bots
+ if(isCompMode)renderCompBots();
  if(gameMode==='boss_rush'&&!boss){ctx.fillStyle='#ff880077';ctx.font="10px 'Press Start 2P'";ctx.textAlign='center';ctx.fillText('NEXT BOSS INCOMING...',W/2,H/2);}
  if(gameMode==='pvp'&&!pvpGameStarted){
   ctx.fillStyle='#ffffff88';ctx.font="9px 'Press Start 2P'";ctx.textAlign='center';
@@ -1797,7 +1972,7 @@ function restartGame(){
   px=W/2;py=H-80;
  }
  buls=[];abuls=[];bbuls=[];parts=[];flts=[];barriers=[];
- pvpLives={};pvpDead={};pvpWinner=0;pvpLives[myPid]=3;pvpGameStarted=false;setTimeout(function(){pvpGameStarted=true;},5000);
+ pvpLives={};pvpDead={};pvpWinner=0;pvpLives[myPid]=3;pvpGameStarted=false;isCompMode=false;botStates={};setTimeout(function(){pvpGameStarted=true;},5000);
  initLevel();running=true;requestAnimationFrame(gtick);
 }
 
